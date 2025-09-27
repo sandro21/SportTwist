@@ -1,42 +1,160 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* ============================================
+   HOMEPAGE COMPONENT STYLES
+   ============================================ */
+
+/* Reset all text element margins */
+.h-container * {
+  margin: 0;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Main Container */
+.h-container {
+  display: flex;
+  flex-direction: column;
+  width: 95%;
+  height: 95%;
+  background-color: #EFD0FA;
+  border-radius: 1.5rem;
+  align-items: center;
+  gap: 5rem;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* Header Section */
+.h-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 2rem;
 }
 
-.card {
-  padding: 2em;
+.h-header h1 {
+  color: #000;
+  font-family: "GT Standard";
+  font-size: 75px;
+  font-weight: 900;
+  margin: 0;
 }
 
-.read-the-docs {
-  color: #888;
+.h-header-twist {
+  background: linear-gradient(90deg, #010101 10.58%, #8000FF 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: "GT Standard";
+  font-size: 75px;
+  font-weight: 800;
+  font-style: italic;
+  line-height: normal;
+}
+
+.h-header h2 {
+  font-family: "GT Standard";
+  font-size: 40px;
+  font-weight: 300;
+  margin: 0;
+}
+
+.h-header-highlight {
+  color: #8000FF;
+  font-weight: 700;
+}
+
+/* Search Section */
+.h-search {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.h-search-border {
+  width: 840px;
+  height: 75px;
+  border-radius: 120px;
+  background: linear-gradient(90deg, rgba(34, 33, 34, 0.71) 0%, rgba(209, 87, 255, 0.40) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.h-search-bar {
+  width: 788px;
+  height: 65px;
+  flex-shrink: 0;
+  border-radius: 116px;
+  background: #F5E6F7;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 15px;
+}
+
+.h-search-bar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: rgba(0, 0, 0, 0.66);
+  font-family: "GT Standard";
+  font-size: 24px;
+  font-style: normal;
+  font-weight: 300;
+  line-height: normal;
+}
+
+.h-search-bar input::placeholder {
+  color: rgba(0, 0, 0, 0.66);
+  font-family: "GT Standard";
+  font-size: 24px;
+  font-weight: 300;
+}
+
+.h-search-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.h-search-slash {
+  font-size: 18px;
+  color: #333;
+  background: #F4D4FF;
+  padding: 6px 7px;
+  border-radius: 7px;
+
+}
+
+/* Trending Section */
+.h-trending-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.h-trending-text {
+  font-size: 22px;
+  font-weight: 300;
+  margin-right: 11px;
+}
+
+.h-trending-labels {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.h-trending-tag {
+  border-radius: 17px;
+  border: 1px solid #FFF;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 5.5px 0 rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(13.649999618530273px);
+  padding: 6px 15px;
+  font-family: "GT Standard";
+  font-size: 16px;
+  font-weight: 400;
+  color: #333;
+  white-space: nowrap;
 }
