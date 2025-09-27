@@ -11,7 +11,7 @@
 .h-container {
   display: flex;
   flex-direction: column;
-  width: 95%;
+  width: 98%;
   height: 95%;
   background-color: #EFD0FA;
   border-radius: 1.5rem;
@@ -157,4 +157,53 @@
   font-weight: 400;
   color: #333;
   white-space: nowrap;
+}
+
+/* Popular Section */
+.h-popular-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.h-popular-text {
+  font-family: "GT Standard";
+  font-size: 22px;
+  font-weight: 300;
+}
+
+.h-game-cards {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+}
+
+.h-game-card {
+  border-radius: 17px;
+  border: 1px solid #FFF;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 5.5px 0 rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(13.649999618530273px);
+  padding: 15px 20px;
+  min-width: 200px;
+}
+
+.h-game-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.h-game-teams {
+  font-family: "GT Standard";
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.h-game-date {
+  font-family: "GT Standard";
+  font-size: 14px;
+  font-weight: 300;
+  color: #666;
 }

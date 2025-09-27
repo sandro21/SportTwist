@@ -1,5 +1,6 @@
 import React from 'react'
 import './App.css'
+import MinimizedGameCard from './components/MinimizedGameCard'
 
 function App() {
   return (
@@ -22,6 +23,13 @@ function App() {
             <div className="h-trending-tag">Eagles vs Cowboys</div>
             <div className="h-trending-tag">Week 3</div>
           </div>
+        </div>
+      </div>
+      <div className="h-popular-container">
+        <p className="h-popular-text">Popular Searches:</p>
+        <div className="h-game-cards">
+          <MinimizedGameCard teams="Eagles vs Cowboys" date="Week 3" />
+          <MinimizedGameCard teams="Lakers vs Warriors" date="Game 7" />
         </div>
       </div>
     </div>
