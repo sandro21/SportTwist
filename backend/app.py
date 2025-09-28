@@ -287,10 +287,16 @@ def simulate_rest_of_game():
     data = request.get_json()
     print(data)
     game = Game(data['game_id'], int(data['game_id'][:4]))
+    game_id = data['game_id']
     simulator = Simulator(game)
     plays = simulator.simulate_from(data["changeable_attributes"], data['start_play_index'], game.plays[data['start_play_index']])
+    avg = simulator.monte_carlo(data["changeable_attributes"], data['start_play_index'], game.plays[data['start_play_index']])
     data = {}
+    data['game_id'] = game_id
     data['plays'] = {}
+    data['avg_scores'] = avg
+    last_row = plays[len(plays)-1]
+    data['final_score'] = {game.home : last_row.home_score, game.away : last_row.away_score}
     for i, play in enumerate(plays):
         data['plays'][int(i)] = {
             'desc': play.desc,
