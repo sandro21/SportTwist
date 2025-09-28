@@ -18,26 +18,23 @@ function App() {
     player?: string
     gameType?: string
   }>({})
-  const [currentWeek, setCurrentWeek] = useState<number>(3) // Current week
+  const [currentWeek] = useState<number>(3) // Current week
   const [currentPage, setCurrentPage] = useState<'home' | 'game'>('home')
-  const [selectedGame, setSelectedGame] = useState<NFLGame | null>(null)
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Load latest games (6) on component mount
+  // Load popular games on component mount
   useEffect(() => {
-    const loadLatestGames = async () => {
+    const loadPopularGames = async () => {
       try {
-        const games = await nflApiService.fetchGames()
-        const latestSix = [...games]
-          .sort((a, b) => new Date(b.gameday).getTime() - new Date(a.gameday).getTime())
-          .slice(0, 6)
-        setPopularGames(latestSix)
+        const games = await nflApiService.getPopularGames()
+        setPopularGames(games)
       } catch (error) {
-        console.error('Failed to load latest games:', error)
+        console.error('Failed to load popular games:', error)
       }
     }
     
-    loadLatestGames()
+    loadPopularGames()
   }, [])
 
   // Handle search with debouncing
@@ -64,33 +61,27 @@ function App() {
     return () => clearTimeout(timeoutId)
   }, [searchQuery])
 
-  // Load latest games and set initial results
+  // Load popular games on component mount
   useEffect(() => {
-    const loadLatestGames = async () => {
-      console.log('Loading latest games...')
+    const loadPopularGames = async () => {
+      console.log('Loading popular games...')
       setIsLoading(true)
       try {
-        const games = await nflApiService.fetchGames()
-        const latestSix = [...games]
-          .sort((a, b) => new Date(b.gameday).getTime() - new Date(a.gameday).getTime())
-          .slice(0, 6)
-        console.log('Loaded latest games:', latestSix.length)
-        setPopularGames(latestSix)
-        // Also set initial search results to recent games (top 10 from full list)
+        const games = await nflApiService.getPopularGames()
+        console.log('Loaded games:', games.length)
+        setPopularGames(games)
+        // Also set initial search results to recent games
         if (games.length > 0) {
-          const topTen = [...games]
-            .sort((a, b) => new Date(b.gameday).getTime() - new Date(a.gameday).getTime())
-            .slice(0, 10)
-          setSearchResults(topTen)
+          setSearchResults(games.slice(0, 10))
         }
       } catch (error) {
-        console.error('Failed to load latest games:', error)
+        console.error('Failed to load popular games:', error)
       } finally {
         setIsLoading(false)
       }
     }
     
-    loadLatestGames()
+    loadPopularGames()
   }, [])
 
   // Handle search functionality
@@ -235,21 +226,12 @@ function App() {
     gameType: ['Regular', 'Playoffs']
   }
 
-  // Handle game selection and navigation
-  const handleGameSelect = (game: NFLGame) => {
-    setSelectedGame(game)
-    setCurrentPage('game')
-  }
-
   // Demo navigation
   if (currentPage === 'game') {
     return (
       <div>
         <button 
-          onClick={() => {
-            setCurrentPage('home')
-            setSelectedGame(null)
-          }}
+          onClick={() => setCurrentPage('home')}
           style={{
             position: 'fixed',
             top: '20px',
@@ -269,7 +251,7 @@ function App() {
         >
           ← Back to Home
         </button>
-        <GamePage game={selectedGame} />
+        <GamePage gameId={selectedGameId || undefined} />
       </div>
     )
   }
@@ -373,7 +355,10 @@ function App() {
                         <SearchResultGameCard 
                           key={game.game_id} 
                           game={game}
-                          onClick={() => handleGameSelect(game)}
+                          onClick={() => {
+                            // Handle game selection - you can add navigation logic here
+                            console.log('Selected game:', game.game_id)
+                          }}
                         />
                       ))}
                   </div>
@@ -446,10 +431,48 @@ function App() {
                   <MinimizedGameCard 
                     key={game.game_id} 
                     game={game}
-                    onClick={() => handleGameSelect(game)}
+                    onClick={() => {
+                      setSelectedGameId(game.game_id)
+                      setCurrentPage('game')
+                    }}
                   />
                 ))
-            ) : null}
+            ) : (
+              // Loading state - no fallback data
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                Loading games...
+              </div>
+            )}
+          </div>
+          
+          {/* Demo Button */}
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            <button 
+              onClick={() => setCurrentPage('game')}
+              style={{
+                padding: '15px 30px',
+                background: 'linear-gradient(90deg, #8000FF 0%, #A000FF 100%)',
+                border: 'none',
+                borderRadius: '30px',
+                fontFamily: 'GT Standard',
+                fontSize: '18px',
+                fontWeight: '600',
+                color: 'white',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(128, 0, 255, 0.3)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)'
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(128, 0, 255, 0.4)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)'
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(128, 0, 255, 0.3)'
+              }}
+            >
+              Demo Game Page →
+            </button>
           </div>
         </div>
       </div>
