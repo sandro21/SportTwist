@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 import MinimizedGameCard from './components/MinimizedGameCard'
 import SearchResultGameCard from './components/SearchResultGameCard'
+import GamePage from './components/GamePage'
 
 function App() {
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState<'home' | 'game'>('home')
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Handle keyboard events
@@ -69,6 +71,36 @@ function App() {
     team: ['Eagles', 'Cowboys', 'Chiefs', 'Bills', 'Packers', 'Vikings'],
     player: ['Mahomes', 'Allen', 'Rodgers', 'Brady', 'Prescott'],
     gameType: ['Regular Season', 'Playoffs', 'Super Bowl', 'Preseason']
+  }
+
+  // Demo navigation
+  if (currentPage === 'game') {
+    return (
+      <div>
+        <button 
+          onClick={() => setCurrentPage('home')}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '20px',
+            zIndex: 1000,
+            padding: '10px 20px',
+            background: 'rgba(255, 255, 255, 0.9)',
+            border: '2px solid #8000FF',
+            borderRadius: '25px',
+            fontFamily: 'GT Standard',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#8000FF',
+            cursor: 'pointer',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          ← Back to Home
+        </button>
+        <GamePage />
+      </div>
+    )
   }
 
   return (
@@ -196,6 +228,36 @@ function App() {
             <MinimizedGameCard teams="NE vs MIA" date="Week 7" />
             <MinimizedGameCard teams="PIT vs BAL" date="Week 8" />
             <MinimizedGameCard teams="SF vs SEA" date="Week 9" />
+          </div>
+          
+          {/* Demo Button */}
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            <button 
+              onClick={() => setCurrentPage('game')}
+              style={{
+                padding: '15px 30px',
+                background: 'linear-gradient(90deg, #8000FF 0%, #A000FF 100%)',
+                border: 'none',
+                borderRadius: '30px',
+                fontFamily: 'GT Standard',
+                fontSize: '18px',
+                fontWeight: '600',
+                color: 'white',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(128, 0, 255, 0.3)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)'
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(128, 0, 255, 0.4)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)'
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(128, 0, 255, 0.3)'
+              }}
+            >
+              Demo Game Page →
+            </button>
           </div>
         </div>
       </div>
