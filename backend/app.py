@@ -1,207 +1,131 @@
-# app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import requests
 import time
-import math
-import nflreadpy as nfl
-from team_logos_dict import team_logos
-from game import Game
 
 app = Flask(__name__)
 CORS(app)
 
-# -------------------------
 # In-memory cache
-# -------------------------
 cache = {}
-CACHE_EXPIRY = 10 * 60  # 10 minutes
+CACHE_EXPIRY = 10 * 60  # 10 minutes in seconds
 
+
+# Helper function to check cache
 def get_cached_game(game_id):
-    entry = cache.get(game_id)
-    if not entry:
-        return None
-    if time.time() - entry['timestamp'] > CACHE_EXPIRY:
-        del cache[game_id]
-        return None
-    return entry['data']
-
-def set_cached_game(game_id, data):
-    cache[game_id] = {'timestamp': time.time(), 'data': data}
-# -------------------------
-# Endpoints
-# -------------------------
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "ok"}), 200
-
-@app.route("/teams", methods=["GET"])
-def teams():
-    return jsonify(team_logos)
+    cached = cache.get(game_id)
+    if cached and (time.time() - cached['timestamp'] < CACHE_EXPIRY):
+        return cached['data']
+    return None
 
 
-@app.route("/game/<string:game_id>", methods=["GET"])
-def get_game(game_id):
-    print(game_id)
-    year = int(game_id[:4])
-    game = Game(game_id, year)
-    return jsonify({"plays": game.plays})
-
-@app.route("/game/<string:game_id>/timeline", methods=["GET"])
-def get_timeline(game_id):
+@app.route('/simulate', methods=['POST'])
+def simulate_game():
     try:
-        cached = get_cached_game(game_id)
-        if cached is None:
-            raw = fetch_game_raw(game_id)
-            set_cached_game(game_id, raw)
+        data = request.json
+        game_id = data.get("game_id")
+        what_if = data.get("what_if")
+
+        if not game_id or not what_if:
+            return jsonify({"error": "Missing game_id or what_if data"}), 400
+
+        # Check cache
+        cached_data = get_cached_game(game_id)
+        if cached_data:
+            game_data = cached_data
         else:
-            raw = cached
+            # Fetch from NFLverse (adjust endpoint!)
+            nflverse_url = f"https://api.nflverse.com/games/{game_id}"
+            response = requests.get(nflverse_url)
+            if response.status_code != 200:
+                return jsonify({"error": "Failed to fetch data from NFLverse"}), 500
 
-        timeline = extract_timeline(raw)
-        return jsonify(timeline)
-    except Exception as e:
-        return jsonify({"error": "Unexpected server error", "details": str(e)}), 500
+            game_data = response.json()
+            cache[game_id] = {"timestamp": time.time(), "data": game_data}
 
-@app.route("/game/<string:game_id>/progression", methods=["GET"])
-def get_progression(game_id):
-    try:
-        cached = get_cached_game(game_id)
-        if cached is None:
-            raw = fetch_game_raw(game_id)
-            set_cached_game(game_id, raw)
-        else:
-            raw = cached
+        # --------------------------
+        # 1. Game Header Information
+        # --------------------------
+        header_info = {
+            "home_team_name": game_data.get("home_team_name"),
+            "away_team_name": game_data.get("away_team_name"),
+            "home_team_logo": game_data.get("home_team_logo"),
+            "away_team_logo": game_data.get("away_team_logo"),
+            "home_team_score": game_data.get("home_team_score"),
+            "away_team_score": game_data.get("away_team_score"),
+            "quarter": game_data.get("quarter"),
+            "time_remaining": game_data.get("time_remaining"),
+            "win_probability_team": game_data.get("win_probability_team"),
+            "win_probability_percentage": game_data.get("win_probability_percentage"),
+        }
 
-        prog = extract_progression(raw)
-        return jsonify(prog)
-    except Exception as e:
-        return jsonify({"error": "Unexpected server error", "details": str(e)}), 500
+        # --------------------------
+        # 2. Game Timeline
+        # --------------------------
+        timeline = []
+        for event in game_data.get("timeline", []):
+            timeline.append({
+                "event_quarter": event.get("quarter"),
+                "event_time": event.get("time"),
+                "event_description": event.get("description"),
+                "outcome_type": event.get("outcome_type"),
+                "outcome_indicator": event.get("outcome_indicator"),
+                "highlight_level": event.get("highlight_level"),
+                "points_change": event.get("points_change"),
+            })
 
-@app.route("/game/<string:game_id>/insights", methods=["GET"])
-def get_insights(game_id):
-    try:
-        cached = get_cached_game(game_id)
-        if cached is None:
-            raw = fetch_game_raw(game_id)
-            set_cached_game(game_id, raw)
-        else:
-            raw = cached
-
-        insights = extract_insights(raw)
-        return jsonify(insights)
-    except Exception as e:
-        return jsonify({"error": "Unexpected server error", "details": str(e)}), 500
-
-@app.route("/simulate", methods=["POST"])
-def simulate():
-    try:
-        payload = request.get_json(force=True)
-        game_id = payload.get("game_id")
-        what_if = payload.get("what_if", {})
-
-        if not game_id or not isinstance(what_if, dict):
-            return jsonify({"error": "Missing game_id or what_if body (must be object)"}), 400
-
-        cached = get_cached_game(game_id)
-        if cached is None:
-            raw = fetch_game_raw(game_id)
-            set_cached_game(game_id, raw)
-        else:
-            raw = cached
-
-        header = extract_header_info(raw)
-        timeline = extract_timeline(raw)
-        plays = extract_plays(raw)
-        progression = extract_progression(raw)
-
-        home_name = header.get("home_team_name")
-        away_name = header.get("away_team_name")
-        home_score = int(header.get("home_team_score") or 0)
-        away_score = int(header.get("away_team_score") or 0)
-
-        new_home = home_score
-        new_away = away_score
-        applied = False
-        reason = None
-
-        team_key = what_if.get("team_abbr") or what_if.get("team") or what_if.get("team_name")
-        points = what_if.get("points")
-        if team_key and isinstance(points, (int, float)):
-            tk = str(team_key).lower()
-            if home_name and tk in home_name.lower():
-                new_home += int(points)
-                applied = True
-                reason = f"Applied {points:+d} to home team ({home_name})"
-            elif away_name and tk in away_name.lower():
-                new_away += int(points)
-                applied = True
-                reason = f"Applied {points:+d} to away team ({away_name})"
-
-        event_id = what_if.get("event_id")
-        if event_id:
-            for ev in timeline:
-                if ev.get("id") == event_id or ev.get("event_id") == event_id or ev.get("play_id") == event_id:
-                    ev["simulated"] = True
-                    ev["sim_description"] = what_if.get("description") or "what-if applied"
-                    break
-
-        p_orig_home = score_diff_to_winprob(home_score, away_score)
-        p_new_home = score_diff_to_winprob(new_home, new_away)
-
+        # --------------------------
+        # 3. Insights Section
+        # --------------------------
         insights = {
-            "phi_score_change": new_home - home_score if home_name and "phi" in home_name.lower() else 0,
-            "dal_score_change": new_away - away_score if away_name and "dal" in away_name.lower() else 0,
-            "win_probability_change": {
-                home_name: f"{int(round((p_new_home - p_orig_home) * 100)):+d}%",
-                away_name: f"{int(round(((1 - p_new_home) - (1 - p_orig_home)) * 100)):+d}%"
-            },
-            "momentum_change": "High" if abs(p_new_home - p_orig_home) > 0.20 else "Medium" if abs(p_new_home - p_orig_home) > 0.07 else "Low"
+            "phi_score_change": game_data.get("phi_score_change", 0),
+            "dal_score_change": game_data.get("dal_score_change", 0),
+            "win_probability_change": game_data.get("win_probability_change", "0%"),
+            "momentum_change": game_data.get("momentum_change", "Low"),
         }
 
-        header_out = {
-            "original": {
-                "home_team_name": home_name,
-                "away_team_name": away_name,
-                "home_team_score": home_score,
-                "away_team_score": away_score,
-                "win_probability": {
-                    home_name: f"{int(round(p_orig_home * 100))}%",
-                    away_name: f"{int(round((1 - p_orig_home) * 100))}%"
-                }
-            },
-            "what_if_applied": applied,
-            "what_if_reason": reason,
-            "what_if_description": what_if.get("description"),
-            "new": {
-                "home_team_name": home_name,
-                "away_team_name": away_name,
-                "home_team_score": new_home,
-                "away_team_score": new_away,
-                "win_probability": {
-                    home_name: f"{int(round(p_new_home * 100))}%",
-                    away_name: f"{int(round((1 - p_new_home) * 100))}%"
-                }
-            }
+        # --------------------------
+        # 4. Score Progression Graph
+        # --------------------------
+        score_progression = {
+            "progression_quarter_labels": game_data.get("progression_quarter_labels", []),
+            "progression_score_values": game_data.get("progression_score_values", []),
+            "original_score_data": game_data.get("original_score_data", []),
+            "what_if_score_data": game_data.get("what_if_score_data", []),
         }
 
-        prog = progression.copy()
-        if prog.get("what_if_score_data") and len(prog["what_if_score_data"]) > 0:
-            prog["what_if_score_data"][-1] = new_home
-        if prog.get("original_score_data") and len(prog["original_score_data"]) > 0:
-            prog["original_score_data"][-1] = home_score
+        # --------------------------
+        # Core Play Variables
+        # --------------------------
+        plays = {
+            "Pass": game_data.get("Pass", {}),
+            "Fumble": game_data.get("Fumble", 0),
+            "ThirdDownConverted": game_data.get("ThirdDownConverted", 0),
+            "FourthDown": game_data.get("FourthDown", {}),
+            "ExtraPoint": game_data.get("ExtraPoint", {}),
+            "TwoPointConversion": game_data.get("TwoPointConversion", {}),
+            "FieldGoal": game_data.get("FieldGoal", {}),
+            "Penalties": game_data.get("Penalties", 0),
+            "Timeouts": game_data.get("Timeouts", 0),
+        }
 
+        # --------------------------
+        # Final Response
+        # --------------------------
         result = {
-            "header_info": header_out,
+            "header_info": header_info,
             "timeline": timeline,
             "insights": insights,
-            "score_progression": prog,
+            "score_progression": score_progression,
             "plays": plays,
-            "what_if": what_if
+            "what_if": what_if,
         }
+
         return jsonify(result)
 
     except Exception as e:
-        return jsonify({"error": "Unexpected server error", "details": str(e)}), 500
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
-# Run server
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
