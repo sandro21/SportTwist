@@ -121,6 +121,29 @@
   font-weight: 800;
   font-family: "GT Standard";
   color: #000000;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.big-game-score .score-old {
+  font-size: 16px;
+  font-weight: 400;
+  color: #888888;
+}
+
+.big-game-score .score-delta {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.big-game-score.score-green {
+  color: #0E8A00;
+}
+
+.big-game-score.score-red {
+  color: #B00020;
 }
 
 .big-game-week {
@@ -137,6 +160,15 @@
   color: #333;
 }
 
+/* Main Content Area - Two Column Layout */
+.main-content {
+  display: flex;
+  gap: 2rem;
+  width: 100%;
+  justify-content: center; /* center the two cards as a row */
+  align-items: flex-start; /* prevent vertical stretching */
+}
+
 /* Events Container Styles */
 .events-container {
   background: rgba(255, 255, 255, 0.3);
@@ -144,6 +176,135 @@
   border-radius: 2rem;
   backdrop-filter: blur(15px);
   padding: 2rem;
+  flex: 0 0 58%; /* slightly narrower to fit both in one row */
+  max-width: 58%;
+}
+
+/* Right Panel Styles */
+.right-panel {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid white;
+  border-radius: 2rem;
+  backdrop-filter: blur(15px);
+  padding: 2rem;
+  flex: 0 0 38%; /* slightly narrower */
+  max-width: 38%;
+  align-self: flex-start; /* ensure panel sizes to content height */
+}
+
+.right-panel h3 {
+  font-family: "GT Standard";
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1rem 0;
+}
+
+.analysis-content {
+  color: #666;
+  font-family: "GT Standard";
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Analysis Section Styles */
+.analysis-section {
+  margin-bottom: 2rem;
+}
+
+/* Input Container Styles */
+.input-container {
+  background-color: #FFFFFF;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.input-container h4 {
+  font-family: "GT Standard";
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1rem 0;
+}
+
+.summary-text {
+  font-family: "GT Standard";
+  font-size: 14px;
+  color: #333;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Simple analysis table - basic black text, no extra colors */
+.analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "GT Standard";
+  color: #000;
+}
+
+.analysis-table th,
+.analysis-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #E5E5E5;
+  font-size: 14px;
+}
+
+.analysis-table thead th {
+  font-weight: 600;
+}
+
+.analysis-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Simulated Statistics Styles */
+.simulated-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-label {
+  font-family: "GT Standard";
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.stat-value {
+  font-family: "GT Standard";
+  font-size: 24px;
+  font-weight: 700;
+  color: #8000FF;
+}
+
+.score-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.team-score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.team-score {
+  font-family: "GT Standard";
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
 }
 
 /* Quarter Header Styles */
@@ -319,6 +480,31 @@
   font-size: 48px;
   font-weight: 900;
   color: #000;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.event-score .score-old {
+  font-size: 14px;
+  font-weight: 400;
+  color: #888888;
+  margin-left: 0.25rem;
+}
+
+.event-score .score-delta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333333;
+  margin-left: 0.25rem;
+}
+
+.event-score.score-green {
+  color: #0E8A00;
+}
+
+.event-score.score-red {
+  color: #B00020;
 }
 
 .event-down-distance {

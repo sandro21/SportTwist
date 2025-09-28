@@ -47,12 +47,17 @@ const GamePage = () => {
   const team1Data = teamData[team1Code as keyof typeof teamData] || teamData['PHI']
   const team2Data = teamData[team2Code as keyof typeof teamData] || teamData['DAL']
   
+  // Mocked score change for big game card
   const score1 = 28
   const score2 = 24
+  const prevScore1 = 27
+  const prevScore2 = 24
+  const score1Delta = score1 - prevScore1
+  const score2Delta = score2 - prevScore2
   const team1Won = score1 > score2
 
   // State management for card interactions - single layer only
-  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
+  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(0)
   const [affectedCards, setAffectedCards] = useState<Set<number>>(new Set())
 
   // Game events data with mixed outcomes (chronological order)
@@ -121,13 +126,17 @@ const GamePage = () => {
               </div>
             </div>
             <div 
-              className="big-game-score" 
+              className={`big-game-score ${score1Delta > 0 ? 'score-green' : score1Delta < 0 ? 'score-red' : ''}`}
               style={{ 
                 opacity: team1Won ? '1' : '0.65',
-                color: team1Won ? '#000000' : '#666666'
+                color: team1Won ? undefined : '#666666'
               }}
             >
               {score1}
+              <span className="score-old">{prevScore1}</span>
+              {score1Delta !== 0 && (
+                <span className="score-delta">{score1Delta > 0 ? '▲' : '▼'} {score1Delta > 0 ? `+${score1Delta}` : `${score1Delta}`}</span>
+              )}
             </div>
           </div>
 
@@ -140,13 +149,17 @@ const GamePage = () => {
           {/* Right Team */}
           <div className="big-game-right-team">
             <div 
-              className="big-game-score" 
+              className={`big-game-score ${score2Delta > 0 ? 'score-green' : score2Delta < 0 ? 'score-red' : ''}`}
               style={{ 
                 opacity: team1Won ? '0.65' : '1',
-                color: team1Won ? '#666666' : '#000000'
+                color: team1Won ? '#666666' : undefined
               }}
             >
               {score2}
+              <span className="score-old">{prevScore2}</span>
+              {score2Delta !== 0 && (
+                <span className="score-delta">{score2Delta > 0 ? '▲' : '▼'} {score2Delta > 0 ? `+${score2Delta}` : `${score2Delta}`}</span>
+              )}
             </div>
             <div className="big-game-team-names">
               <div className="big-game-city-name">Dallas</div>
@@ -164,56 +177,87 @@ const GamePage = () => {
           </div>
         </div>
 
-        {/* Events Container */}
-        <div className="events-container">
-          <h3>Game Events</h3>
-          
-          {/* Color Legend */}
-          <div className="color-legend">
-            <h4>Card States Guide</h4>
-            <div className="color-items">
-              <div className="color-item">
-                <div className="color-indicator green"></div>
-                <div className="color-label">Active Card: Glows pink when triggered, cards above it have pink background</div>
+        {/* Main Content Area - Two Column Layout */}
+        <div className="main-content">
+          {/* Left Column - Events Container (60%) */}
+          <div className="events-container">
+            <h3>Game Events</h3>
+            
+            {/* Render game events with visual quarter dividers */}
+            {gameEvents.map((event, index) => {
+              const cardState = getCardState(index)
+              const prevEvent = index > 0 ? gameEvents[index - 1] : null
+              const showQuarterHeader = !prevEvent || prevEvent.quarter !== event.quarter
+              
+              return (
+                <div key={index}>
+                  {/* Show quarter header when quarter changes */}
+                  {showQuarterHeader && (
+                    <div className="quarter-header">
+                      <h2>{event.quarter} Quarter</h2>
+                    </div>
+                  )}
+                  
+                  {/* Render the game event */}
+                <GameEvent 
+                    team={event.team}
+                    score={event.score}
+                    action={event.action}
+                    quarter={event.quarter}
+                    timeRemaining={event.timeRemaining}
+                    description={event.description}
+                    downAndDistance={event.downAndDistance}
+                    cardState={cardState}
+                    isFailure={event.isFailure}
+                  onToggle={() => handleCardToggle(index)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Right Column - New Content Area (40%) */}
+          <div className="right-panel">
+            <h3>Game Analysis</h3>
+            <div className="analysis-content">
+              {/* Summary Section */}
+              <div className="analysis-section">
+                <div className="input-container">
+                  <h4>Summary:</h4>
+                  <p className="summary-text">
+                    This game featured a close battle between the Eagles and Cowboys, with key plays in the fourth quarter determining the outcome. The Eagles managed to secure a narrow victory with a late touchdown.
+                  </p>
+                </div>
               </div>
-              <div className="color-item">
-                <div className="color-indicator"></div>
-                <div className="color-label">Not Affected: Default white background, no special styling</div>
+
+              {/* Simulated Statistics Section */}
+              <div className="analysis-section">
+                <div className="input-container">
+                  <table className="analysis-table">
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th>{team1Code}</th>
+                        <th>{team2Code}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Simulated Win %</td>
+                        <td>65%</td>
+                        <td>35%</td>
+                      </tr>
+                      <tr>
+                        <td>Simulated Avg Score</td>
+                        <td>28.5</td>
+                        <td>24.2</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
-          
-          {/* Render game events with visual quarter dividers */}
-          {gameEvents.map((event, index) => {
-            const cardState = getCardState(index)
-            const prevEvent = index > 0 ? gameEvents[index - 1] : null
-            const showQuarterHeader = !prevEvent || prevEvent.quarter !== event.quarter
-            
-            return (
-              <div key={index}>
-                {/* Show quarter header when quarter changes */}
-                {showQuarterHeader && (
-                  <div className="quarter-header">
-                    <h2>{event.quarter} Quarter</h2>
-                  </div>
-                )}
-                
-                {/* Render the game event */}
-                <GameEvent 
-                  team={event.team}
-                  score={event.score}
-                  action={event.action}
-                  quarter={event.quarter}
-                  timeRemaining={event.timeRemaining}
-                  description={event.description}
-                  downAndDistance={event.downAndDistance}
-                  cardState={cardState}
-                  isFailure={event.isFailure}
-                  onToggle={() => handleCardToggle(index)}
-                />
-              </div>
-            )
-          })}
         </div>
       </div>
     </div>
