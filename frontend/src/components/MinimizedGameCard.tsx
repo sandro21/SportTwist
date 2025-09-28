@@ -60,52 +60,12 @@ function MinimizedGameCard({ teams, date, onClick }: MinimizedGameCardProps) {
   const score2 = 24
   const team1Won = score1 > score2
 
-  // STYLING CONSTANTS
-  const cardStyles = {
-    backgroundColor: '#FFFFFF',
-    border: '3px solid #F2DFFF',
-    borderRadius: '20px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '6px',
-    width: '240px'
-  }
-
-  const teamCardStyles = {
-    display: 'flex',
-    flexDirection: 'row' as const,
-    alignItems: 'center',
-    justifyContent: 'space-between'
-
-  }
-
+  // Team info styles for layout
   const teamInfoStyles = {
     display: 'flex',
     flexDirection: 'row' as const,
     alignItems: 'center',
     gap: '10px'
-  }
-
-  const logoStyles = {
-    width: '30px',
-    height: '30px'
-  }
-
-  const teamNameStyles = {
-    fontSize: '24px',
-    fontWeight: '600'
-  }
-
-  const scoreStyles = {
-    fontSize: '24px',
-    fontWeight: '600'
-  }
-
-  const dateStyles = {
-    fontSize: '15px',
-    fontWeight: '500',
-    color: 'rgba(0, 0, 0, 0.7)',
-    fontStretch: 'condensed' as const
   }
 
   // Format date from "Week 3" to "Sep 15, 2025  •  Week 3"
@@ -115,51 +75,51 @@ function MinimizedGameCard({ teams, date, onClick }: MinimizedGameCardProps) {
   }
 
   return (
-    <div className="h-game-card" onClick={onClick} style={cardStyles}>
+    <div className="h-game-card" onClick={onClick}>
       {/* Team 1 */}
-      <div className="h-team-card" style={teamCardStyles}>
+      <div className="h-team-card">
         <div style={teamInfoStyles}>
           <div className="h-team-image">
-            <img src={team1Data.logo} alt={team1Data.name} style={logoStyles} />
+            <img src={team1Data.logo} alt={team1Data.name} />
           </div>
           <div 
             className="h-team-name" 
-            style={{ ...teamNameStyles, opacity: team1Won ? '1' : '0.65' }}
+            style={{ opacity: team1Won ? '1' : '0.65' }}
           >
             {team1Code}
           </div>
         </div>
         <div 
           className="h-team-score" 
-          style={{ ...scoreStyles, opacity: team1Won ? '1' : '0.65' }}
+          style={{ opacity: team1Won ? '1' : '0.65' }}
         >
           {score1}
         </div>
       </div>
 
       {/* Team 2 */}
-      <div className="h-team-card" style={teamCardStyles}>
+      <div className="h-team-card">
         <div style={teamInfoStyles}>
           <div className="h-team-image">
-            <img src={team2Data.logo} alt={team2Data.name} style={logoStyles} />
+            <img src={team2Data.logo} alt={team2Data.name} />
           </div>
           <div 
             className="h-team-name" 
-            style={{ ...teamNameStyles, opacity: team1Won ? '0.65' : '1' }}
+            style={{ opacity: team1Won ? '0.65' : '1' }}
           >
             {team2Code}
           </div>
         </div>
         <div 
           className="h-team-score" 
-          style={{ ...scoreStyles, opacity: team1Won ? '0.65' : '1' }}
+          style={{ opacity: team1Won ? '0.65' : '1' }}
         >
           {score2}
         </div>
       </div>
 
       {/* Date */}
-      <div className="h-date" style={dateStyles}>
+      <div className="h-date">
         {formatDate(date)}
       </div>
     </div>
