@@ -9,9 +9,10 @@ from game import Game, Simulator
 # df = df[df['season'] == 2025]
 # # .to_dict(orient="records")
 # df.to_csv('teams.csv', index=False)
-# game = Game("2025_03_MIA_BUF", 2025)
-# plays = game.plays
-# sim = Simulator(game)
-# plays = sim.simulate_from({"is_one_point": False, "made": True}, 11, plays[11])
-# for play in plays:
-#     print(play)
+game = Game("2025_01_KC_LAC", 2025)
+plays = game.plays
+# for i, play in enumerate(plays):
+#     print(str(i) + ":" + str(play))
+sim = Simulator(game)
+avgs = sim.monte_carlo({"is_complete": False, "is_interception": True}, 104, plays[104])
+print(avgs)

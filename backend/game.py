@@ -371,6 +371,24 @@ class Simulator:
         probability = max_prob * math.tanh(probability / max_prob)
         
         return "PAT2" if random.random() < max(0.01, probability)  else "XP_KICK"
+    
+    def monte_carlo(self, changeable_attrs, start_play_index, change_play):
+        simulations = 5000
+        total_home_score = 0
+        total_away_score = 0
+        home_wins = 0
+        for _ in range(simulations):
+            simulated_plays = self.simulate_from(changeable_attrs, start_play_index, change_play)
+            simulated_plays[len(simulated_plays)-1]
+            total_home_score += simulated_plays[len(simulated_plays)-1].home_score
+            total_away_score += simulated_plays[len(simulated_plays)-1].away_score
+            if simulated_plays[len(simulated_plays)-1].home_score > simulated_plays[len(simulated_plays)-1].away_score:
+                home_wins += 1
+        avg_home_score = total_home_score / simulations
+        avg_away_score = total_away_score / simulations
+        home_win_rate = home_wins / simulations
+        away_win_rate = 1 - home_win_rate
+        return {self.game.home: {'score': avg_home_score, 'win_pct': home_win_rate}, self.game.away: {'score': avg_away_score, 'win_pct': away_win_rate}}
 
     def simulate_from(self, changeable_attrs, start_play_index, change_play):
         state = GameState(change_play)
@@ -386,7 +404,7 @@ class Simulator:
             else:
                 last_plays.append(next_play)
                 state = GameState(next_play)
-        return last_plays
+        return last_plays[:len(last_plays)-1]
         
     def simulate_completion(self, state, num):
         yards_gained = max(-5, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_pass'], 4)))
