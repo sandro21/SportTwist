@@ -1,0 +1,519 @@
+/* ============================================
+   GAME PAGE COMPONENT STYLES
+   ============================================ */
+
+.game-page {
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow-y: auto;
+}
+
+.game-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.game-page-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Big Game Card Styles */
+.big-game-card {
+  background-color: #FFFFFF;
+  border: 3px solid rgba(242, 223, 255, 0.88);
+  border-radius: 10rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.big-game-left-team {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  max-width: 45%;
+}
+
+.big-game-left-team .big-game-score {
+  margin-left: 1rem;
+}
+
+.big-game-right-team {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  justify-content: flex-end;
+  max-width: 45%;
+}
+
+.big-game-right-team .big-game-score {
+  margin-right: 1rem;
+}
+
+.big-game-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  padding: 0 2rem;
+}
+
+.big-game-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+
+.big-game-right-team .big-game-team-names {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: right;
+}
+
+.big-game-city-name {
+  font-size: 18px;
+  font-weight: 400;
+  font-family: "GT Standard";
+  color: #000000;
+}
+
+.big-game-mascot-name {
+  font-size: 32px;
+  font-weight: 900;
+  font-family: "GT Standard";
+  color: #000000;
+  line-height: 95%;
+}
+
+.big-game-score {
+  font-size: 64px;
+  font-weight: 800;
+  font-family: "GT Standard";
+  color: #000000;
+}
+
+.big-game-week {
+  font-size: 20px;
+  font-weight: 400;
+  font-family: "GT Standard";
+  color: #333;
+}
+
+.big-game-date {
+  font-size: 20px;
+  font-weight: 400;
+  font-family: "GT Standard";
+  color: #333;
+}
+
+/* Events Container Styles */
+.events-container {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid white;
+  border-radius: 2rem;
+  backdrop-filter: blur(15px);
+  padding: 2rem;
+}
+
+/* Quarter Header Styles */
+.quarter-header {
+  margin-bottom: 0.5rem;
+  margin-left: 1rem;
+}
+
+.quarter-header h2 {
+  font-family: "GT Standard";
+  font-size: 20px;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.events-container h3 {
+  font-family: "GT Standard";
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1rem 0;
+}
+
+/* Color Legend Styles */
+.color-legend {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 1.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.color-legend h4 {
+  font-family: "GT Standard";
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.75rem 0;
+}
+
+.color-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.color-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.color-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.color-indicator.green {
+  background-color: rgba(255, 192, 203, 0.1);
+  border-color: rgba(255, 192, 203, 0.6);
+}
+
+.color-label {
+  font-family: "GT Standard";
+  font-size: 14px;
+  font-weight: 400;
+  color: #333;
+}
+
+/* Quarter Header Styles */
+.quarter-header {
+  margin-top: 2rem;
+}
+
+/* Game Event Card Styles */
+.game-event {
+  background-color: #FFFFFF;
+  border-radius: 1.5rem;
+  padding: .4rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: box-shadow 0.3s ease;
+  max-width: 800px;
+  position: relative;
+}
+
+.game-event.active {
+  box-shadow: 0 0 20px rgba(255, 192, 203, 0.6), 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 2px solid rgba(255, 192, 203, 0.8);
+}
+
+.game-event.clickable {
+  cursor: pointer;
+}
+
+.game-event.clickable:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.game-event.affected {
+  background-color: rgba(200, 180, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  opacity: 1;
+}
+
+/* New Layout Structure */
+.game-event-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.game-event-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.game-event-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.25rem;
+  min-width: 120px;
+}
+
+/* Event Content Styles */
+.game-event-top-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+.event-team-logo {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.event-team-name {
+  font-family: "GT Standard";
+  font-size: 25px;
+  font-weight: 900;
+  color: #000;
+}
+
+.game-event-bottom-left {
+  padding-top: 0.5rem;
+}
+
+.event-time {
+  font-family: "GT Standard";
+  font-size: 20px;
+  font-weight: 300;
+  color: #000;
+}
+
+.event-score {
+  font-family: "GT Standard";
+  font-size: 48px;
+  font-weight: 900;
+  color: #000;
+}
+
+.event-down-distance {
+  font-family: "GT Standard";
+  font-size: 14px;
+  font-weight: 400;
+  color: #000;
+}
+
+.event-action-desc {
+  font-family: "GT Standard";
+  font-size: 16px;
+  font-weight: 300;
+  color: #2a2a2ad8;
+}
+
+.game-event-bottom-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.event-action-type {
+  font-family: "GT Standard";
+  font-size: 18px;
+  font-weight: 400;
+  color: #00AA00; /* Green for best outcome */
+}
+
+.event-action-type.toggled {
+  color: #AA0000; /* Red for worst outcome */
+}
+
+/* Status text in top left - matches action type styling */
+.game-event-top-left .event-status {
+  font-family: "GT Standard";
+  font-size: 18px;
+  font-weight: 400;
+  color: #00AA00; /* Green for best outcome */
+}
+
+.game-event-top-left .event-status.toggled {
+  color: #AA0000; /* Red for worst outcome */
+}
+
+.event-status {
+  font-family: "GT Standard";
+  font-size: 14px;
+  font-weight: 300;
+  color: #00AA00; /* Green for best outcome */
+}
+
+.event-status.toggled {
+  color: #AA0000; /* Red for worst outcome */
+}
+
+/* When any card is active, remove colors only from affected cards (not the active card) */
+.game-event.affected .event-status {
+  color: #666666; /* Neutral gray for affected cards only */
+}
+
+.game-event.affected .event-status.toggled {
+  color: #666666; /* Neutral gray for affected cards only */
+}
+
+/* Action type for affected cards */
+.game-event.affected .event-action-type {
+  color: #666666; /* Neutral gray for affected cards only */
+}
+
+.game-event.affected .event-action-type.toggled {
+  color: #666666; /* Neutral gray for affected cards only */
+}
+
+/* Status text in top left for affected cards */
+.game-event.affected .game-event-top-left .event-status {
+  color: #666666; /* Neutral gray for affected cards only */
+}
+
+.game-event.affected .game-event-top-left .event-status.toggled {
+  color: #666666; /* Neutral gray for affected cards only */
+}
+
+.event-toggle-switch {
+  width: 50px;
+  height: 25px;
+  background-color: #00AA00; /* Green background for best outcome (right position) */
+  border-radius: 25px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.event-toggle-switch.active {
+  background-color: #AA0000; /* Red background for worst outcome (left position) */
+}
+
+/* When any card is active, disable switches on affected cards */
+.game-event.affected .event-toggle-switch {
+  background-color: #CCCCCC; /* Neutral gray for affected cards only */
+  cursor: not-allowed; /* Show disabled cursor */
+  opacity: 0.5; /* Make it look disabled */
+  pointer-events: none; /* Disable clicking */
+}
+
+.game-event.affected .event-toggle-switch.active {
+  background-color: #CCCCCC; /* Neutral gray for affected cards only */
+}
+
+.toggle-slider {
+  width: 21px;
+  height: 21px;
+  background-color: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  right: 2px; /* Start on the right for best outcome */
+  transition: transform 0.3s ease;
+}
+
+.event-toggle-switch.active .toggle-slider {
+  transform: translateX(-25px); /* Move to left for worst outcome */
+}
+
+/* Toggle Container Styles */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Dropdown Trigger Styles */
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.dropdown-trigger:hover:not(.disabled) {
+  color: #666666;
+}
+
+.dropdown-trigger.disabled {
+  color: #999999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dropdown-arrow {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu Styles */
+.dropdown-menu-container {
+  position: absolute;
+  top: 40%;
+  left: 18%;
+  z-index: 1000;
+  margin-top: 0.25rem;
+}
+
+.dropdown-menu {
+  background-color: #FFFFFF;
+  border: 1px solid #CCCCCC;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.dropdown-option {
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-family: "GT Standard";
+  font-size: 14px;
+  font-weight: 300;
+  color: #000;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.dropdown-option:hover {
+  background-color: #F5F5F5;
+}
+
+.dropdown-option.selected {
+  background-color: #E8F5E8;
+  color: #2E7D32;
+}
