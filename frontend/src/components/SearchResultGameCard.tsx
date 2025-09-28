@@ -1,8 +1,9 @@
-import React from 'react'
+import type { NFLGame } from '../services/nflApi'
 
 interface SearchResultGameCardProps {
-  teams: string
-  date: string
+  teams?: string  // Keep for backwards compatibility
+  date?: string   // Keep for backwards compatibility
+  game?: NFLGame  // New prop for real NFL data
   onClick?: () => void
 }
 
@@ -41,26 +42,43 @@ const teamData = {
   'WAS': { name: 'Commanders', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Washington_commanders.svg/100px-Washington_commanders.svg.png' }
 }
 
-function SearchResultGameCard({ teams, date, onClick }: SearchResultGameCardProps) {
-  // Parse teams string to get team codes
-  const teamCodes = teams.split(' vs ')
-  const team1Code = teamCodes[0] || 'PHI'
-  const team2Code = teamCodes[1] || 'DAL'
+function SearchResultGameCard({ teams, date, game, onClick }: SearchResultGameCardProps) {
+  // Use real NFL data if provided, otherwise fallback to props
+  let team1Code: string, team2Code: string, score1: number, score2: number, weekText: string, dateText: string;
+  
+  if (game) {
+    // Use real NFL data
+    team1Code = game.away_team;  // Away team (first in "team vs team" format)
+    team2Code = game.home_team;  // Home team (second in "team vs team" format)
+    score1 = game.away_score;
+    score2 = game.home_score;
+    weekText = `Week ${game.week}`;
+    
+    // Format date from real data
+    const gameDateTime = new Date(game.gameday);
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    };
+    dateText = gameDateTime.toLocaleDateString('en-US', options);
+  } else {
+    // Fallback to old format for backwards compatibility
+    const teamCodes = teams?.split(' vs ') || ['PHI', 'DAL'];
+    team1Code = teamCodes[0] || 'PHI';
+    team2Code = teamCodes[1] || 'DAL';
+    score1 = 28;  // Default scores
+    score2 = 24;
+    weekText = date || 'Week 4';
+    dateText = 'September 24, 2025';
+  }
   
   // Get team data or fallback to Eagles vs Cowboys
   const team1Data = teamData[team1Code as keyof typeof teamData] || teamData['PHI']
   const team2Data = teamData[team2Code as keyof typeof teamData] || teamData['DAL']
   
   // Determine winner (higher score)
-  const score1 = 28
-  const score2 = 24
   const team1Won = score1 > score2
-
-  // Format date from "Week 3" to "Sep 15, 2025  •  Week 3"
-  const formatDate = (weekText: string) => {
-    const weekNumber = weekText.match(/\d+/)?.[0] || '4'
-    return `Sep 15, 2025  •  Week ${weekNumber}`
-  }
 
   return (
     <div className="search-result-card" onClick={onClick}>
@@ -68,7 +86,7 @@ function SearchResultGameCard({ teams, date, onClick }: SearchResultGameCardProp
       <div className="search-result-left-team">
         <img src={team1Data.logo} alt={team1Data.name} className="search-result-logo" />
         <div className="search-result-team-names">
-          <div className="search-result-city-name">New York</div>
+          <div className="search-result-city-name">{team1Code}</div>
         <div 
           className="search-result-mascot-name" 
           style={{ 
@@ -76,7 +94,7 @@ function SearchResultGameCard({ teams, date, onClick }: SearchResultGameCardProp
             color: team1Won ? '#000000' : '#666666'
           }}
         >
-          Jets
+          {team1Data.name}
         </div>
         </div>
         <div 
@@ -92,8 +110,8 @@ function SearchResultGameCard({ teams, date, onClick }: SearchResultGameCardProp
 
       {/* Middle Date */}
       <div className="search-result-middle">
-        <div className="search-result-week">Week 4</div>
-        <div className="search-result-date">September 24, 2025</div>
+        <div className="search-result-week">{weekText}</div>
+        <div className="search-result-date">{dateText}</div>
       </div>
 
       {/* Right Team */}
@@ -108,7 +126,7 @@ function SearchResultGameCard({ teams, date, onClick }: SearchResultGameCardProp
           {score2}
         </div>
         <div className="search-result-team-names">
-          <div className="search-result-city-name">New York</div>
+          <div className="search-result-city-name">{team2Code}</div>
           <div 
             className="search-result-mascot-name" 
             style={{ 
@@ -116,7 +134,7 @@ function SearchResultGameCard({ teams, date, onClick }: SearchResultGameCardProp
               color: team1Won ? '#666666' : '#000000'
             }}
           >
-            Jets
+            {team2Data.name}
           </div>
         </div>
         <img src={team2Data.logo} alt={team2Data.name} className="search-result-logo" />

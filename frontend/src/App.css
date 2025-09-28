@@ -254,7 +254,7 @@ padding: 20px 25px 30px 25px;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 15px 22px;
+  gap: 25px 35px; /* Increased spacing between cards */
 }
 
 .h-game-card {
@@ -468,23 +468,22 @@ padding: 20px 25px 30px 25px;
   border-left: 2px solid white;
   border-right: 2px solid white;
   border-top: none;
-
   border-radius: 0;
   padding: 15px;
   flex: 1;
   display: flex;
   flex-direction: row;
-  gap: 10px;
+  gap: 15px; /* Increased spacing between filter buttons */
   align-items: center;
 }
 
 .filter-button {
   border-radius: 30px;
-  border: 1px solid #FFF;
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 0 5.5px 0 rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(13.649999618530273px);
-  padding: 6px 25px;
+  border: 1px solid #ddd;
+  background: rgba(255, 255, 255, 1) !important; /* Completely opaque */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: none;
+  padding: 8px 25px; /* Slightly increased padding */
   font-family: "GT Standard";
   font-size: 20px;
   font-weight: 300;
@@ -494,6 +493,7 @@ padding: 20px 25px 30px 25px;
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .filter-chevron {
@@ -512,11 +512,11 @@ padding: 20px 25px 30px 25px;
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.90);
-  border: 1px solid #FFF;
+  background: rgba(255, 255, 255, 1) !important; /* Completely opaque */
+  border: 1px solid #ddd;
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(50px);
+  backdrop-filter: none;
   z-index: 1000;
   margin-top: 5px;
   overflow: hidden;
@@ -530,7 +530,8 @@ padding: 20px 25px 30px 25px;
   color: #333;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  backdrop-filter: blur(50px);
+  backdrop-filter: none;
+  background: rgba(255, 255, 255, 1) !important; /* Completely opaque */
 }
 
 .dropdown-item:hover {
@@ -548,7 +549,7 @@ padding: 20px 25px 30px 25px;
   padding: 20px;
   padding-top: 0px;
   flex: 1;
-  min-height: 520px;
+  min-height: 600px; /* Increased from 520px to give more space */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -569,41 +570,44 @@ padding: 20px 25px 30px 25px;
   background-color: #FFFFFF;
   border: none;
   border-radius: 5rem;
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* Use grid for consistent alignment */
   align-items: center;
-  justify-content: space-between;
   padding: 7px 20px;
   cursor: pointer;
+  min-height: 70px; /* Ensure consistent height */
 }
 
 .search-result-card:hover {
-  /* No hover effects */
+  background-color: #f8f9fa;
 }
 
 .search-result-left-team {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 50px 1fr 60px; /* Logo, team names, score */
   align-items: center;
   gap: 15px;
-  flex: 1;
+  justify-items: start;
 }
 
 .search-result-left-team .search-result-score {
-  margin-left: 45px;
+  justify-self: end; /* Align score to the right within its column */
 }
 
 .search-result-right-team {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 60px 1fr 50px; /* Score, team names, logo */
   align-items: center;
   gap: 15px;
-  flex: 1;
-  justify-content: flex-end;
+  justify-items: end;
 }
 
 .search-result-right-team .search-result-score {
-  margin-right: 50px;
+  justify-self: start; /* Align score to the left within its column */
+}
+
+.search-result-right-team .search-result-team-names {
+  justify-self: end; /* Align team names to the right */
 }
 
 .search-result-middle {
@@ -611,8 +615,9 @@ padding: 20px 25px 30px 25px;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  flex: 0 0 auto;
-  padding: 0 30px;
+  padding: 0 20px;
+  justify-self: center; /* Center in the grid */
+  min-width: 120px; /* Ensure consistent width for middle section */
 }
 
 .search-result-logo {
@@ -621,10 +626,18 @@ padding: 20px 25px 30px 25px;
   object-fit: contain;
 }
 
-.search-result-right-team .search-result-team-names {
+.search-result-team-names {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 100px; /* Ensure consistent width for team names */
+}
+
+.search-result-left-team .search-result-team-names {
+  text-align: left;
+}
+
+.search-result-right-team .search-result-team-names {
   text-align: right;
 }
 
@@ -687,4 +700,71 @@ padding: 20px 25px 30px 25px;
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Search Loading and No Results Styles */
+.search-loading, .search-no-results {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-size: 1rem;
+}
+
+.search-loading {
+  color: #007bff;
+}
+
+.search-no-results {
+  color: #888;
+}
+
+/* Search Results Container with Scrolling */
+.search-results-container {
+  max-height: 500px; /* Increased height to give more space */
+  overflow-y: auto;
+  padding-right: 10px;
+  padding-bottom: 20px; /* Add bottom padding to reduce awkward empty space */
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Increased spacing between search result cards */
+}
+
+.search-results-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-results-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.search-results-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.search-results-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Filter button states */
+.filter-button:hover {
+  background-color: rgba(248, 249, 250, 1) !important;
+  border-color: #bbb;
+}
+
+.filter-button.active {
+  background-color: rgba(0, 123, 255, 0.1) !important;
+  border-color: #007bff;
+}
+
+.filter-button.selected {
+  background-color: rgba(128, 0, 255, 0.15) !important;
+  border-color: #8000FF;
+  color: #5d0a87;
+  font-weight: 500;
+}
+
+.filter-button.selected:hover {
+  background-color: rgba(128, 0, 255, 0.25) !important;
 }

@@ -1,8 +1,9 @@
-import React from 'react'
+import type { NFLGame } from '../services/nflApi'
 
 interface MinimizedGameCardProps {
-  teams: string
-  date: string
+  teams?: string  // Keep for backwards compatibility
+  date?: string   // Keep for backwards compatibility
+  game?: NFLGame  // New prop for real NFL data
   onClick?: () => void
 }
 
@@ -41,23 +42,43 @@ const teamData = {
   'WAS': { name: 'Commanders', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Washington_commanders.svg/100px-Washington_commanders.svg.png' }
 }
 
-// Get specific teams (not random)
-const team1 = 'PHI' // Eagles
-const team2 = 'DAL' // Cowboys
-
-function MinimizedGameCard({ teams, date, onClick }: MinimizedGameCardProps) {
-  // Parse teams string to get team codes
-  const teamCodes = teams.split(' vs ')
-  const team1Code = teamCodes[0] || 'PHI'
-  const team2Code = teamCodes[1] || 'DAL'
+function MinimizedGameCard({ teams, date, game, onClick }: MinimizedGameCardProps) {
+  // Use real NFL data if provided, otherwise fallback to props
+  let team1Code: string, team2Code: string, score1: number, score2: number, gameDate: string;
+  
+  if (game) {
+    // Use real NFL data
+    team1Code = game.away_team;  // Away team (first in "team vs team" format)
+    team2Code = game.home_team;  // Home team (second in "team vs team" format)
+    score1 = game.away_score;
+    score2 = game.home_score;
+    
+    // Format date from real data
+    const gameDateTime = new Date(game.gameday);
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    };
+    gameDate = `${gameDateTime.toLocaleDateString('en-US', options)}  •  Week ${game.week}`;
+  } else {
+    // Fallback to old format for backwards compatibility
+    const teamCodes = teams?.split(' vs ') || ['PHI', 'DAL'];
+    team1Code = teamCodes[0] || 'PHI';
+    team2Code = teamCodes[1] || 'DAL';
+    score1 = 28;  // Default scores
+    score2 = 24;
+    
+    // Format date from props
+    const weekNumber = date?.match(/\d+/)?.[0] || '4';
+    gameDate = `Sep 15, 2025  •  Week ${weekNumber}`;
+  }
   
   // Get team data or fallback to Eagles vs Cowboys
   const team1Data = teamData[team1Code as keyof typeof teamData] || teamData['PHI']
   const team2Data = teamData[team2Code as keyof typeof teamData] || teamData['DAL']
   
   // Determine winner (higher score)
-  const score1 = 28
-  const score2 = 24
   const team1Won = score1 > score2
 
   // Team info styles for layout
@@ -66,12 +87,6 @@ function MinimizedGameCard({ teams, date, onClick }: MinimizedGameCardProps) {
     flexDirection: 'row' as const,
     alignItems: 'center',
     gap: '10px'
-  }
-
-  // Format date from "Week 3" to "Sep 15, 2025  •  Week 3"
-  const formatDate = (weekText: string) => {
-    const weekNumber = weekText.match(/\d+/)?.[0] || '4'
-    return `Sep 15, 2025  •  Week ${weekNumber}`
   }
 
   return (
@@ -120,7 +135,7 @@ function MinimizedGameCard({ teams, date, onClick }: MinimizedGameCardProps) {
 
       {/* Date */}
       <div className="h-date">
-        {formatDate(date)}
+        {gameDate}
       </div>
     </div>
   )

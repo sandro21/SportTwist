@@ -2,11 +2,110 @@ import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 import MinimizedGameCard from './components/MinimizedGameCard'
 import SearchResultGameCard from './components/SearchResultGameCard'
+import { nflApiService, type NFLGame } from './services/nflApi'
 
 function App() {
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<NFLGame[]>([])
+  const [popularGames, setPopularGames] = useState<NFLGame[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedFilters, setSelectedFilters] = useState<{
+    season?: string
+    team?: string
+    player?: string
+    gameType?: string
+  }>({})
+  const [currentWeek, setCurrentWeek] = useState<number>(3) // Current week
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Load popular games on component mount
+  useEffect(() => {
+    const loadPopularGames = async () => {
+      try {
+        const games = await nflApiService.getPopularGames()
+        setPopularGames(games)
+      } catch (error) {
+        console.error('Failed to load popular games:', error)
+      }
+    }
+    
+    loadPopularGames()
+  }, [])
+
+  // Handle search with debouncing
+  useEffect(() => {
+    const performSearch = async () => {
+      if (searchQuery.trim() === '') {
+        setSearchResults([])
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const results = await nflApiService.searchGames(searchQuery)
+        setSearchResults(results)
+      } catch (error) {
+        console.error('Search failed:', error)
+        setSearchResults([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    const timeoutId = setTimeout(performSearch, 300) // Debounce search
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  // Load popular games on component mount
+  useEffect(() => {
+    const loadPopularGames = async () => {
+      console.log('Loading popular games...')
+      setIsLoading(true)
+      try {
+        const games = await nflApiService.getPopularGames()
+        console.log('Loaded games:', games.length)
+        setPopularGames(games)
+        // Also set initial search results to recent games
+        if (games.length > 0) {
+          setSearchResults(games.slice(0, 10))
+        }
+      } catch (error) {
+        console.error('Failed to load popular games:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadPopularGames()
+  }, [])
+
+  // Handle search functionality
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        // Reset to popular games when search is cleared
+        setSearchResults(popularGames.slice(0, 10))
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const results = await nflApiService.searchGames(searchQuery)
+        setSearchResults(results)
+      } catch (error) {
+        console.error('Search failed:', error)
+        setSearchResults([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    // Debounce search to avoid too many API calls
+    const timeoutId = setTimeout(performSearch, 300)
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, popularGames])
 
   // Handle keyboard events
   useEffect(() => {
@@ -50,10 +149,19 @@ function App() {
     }, 100)
   }
 
-  // Handle input change to keep overlay open while typing
+  // Handle input change to keep overlay open while typing and perform search
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value
+    
+    // Reset filters when user starts typing
+    if (Object.keys(selectedFilters).length > 0) {
+      resetFilters()
+    }
+    
+    setSearchQuery(value)
+    
     // Keep overlay open while typing
-    if (event.target.value.length > 0) {
+    if (value.length > 0) {
       setIsSearchOverlayOpen(true)
     }
   }
@@ -63,12 +171,56 @@ function App() {
     setActiveDropdown(activeDropdown === dropdownName ? null : dropdownName)
   }
 
-  // Sample dropdown data
+  // Reset filters function
+  const resetFilters = () => {
+    setSelectedFilters({})
+    setSearchQuery('')
+  }
+
+  // Handle filter selection
+  const handleFilterSelect = (filterType: string, value: string) => {
+    // Reset all other filters when a new one is selected
+    setSelectedFilters({ [filterType]: value })
+    setActiveDropdown(null) // Close dropdown after selection
+    
+    // Apply the filter based on type
+    if (filterType === 'team') {
+      setSearchQuery(value.toLowerCase())
+    } else if (filterType === 'season') {
+      // Handle season filter
+      setSearchQuery(`season:${value}`)
+    } else if (filterType === 'player') {
+      // Handle player filter
+      setSearchQuery(`player:${value}`)
+    } else if (filterType === 'gameType') {
+      // Handle game type filter
+      setSearchQuery(`type:${value}`)
+    }
+  }
+
+  // Handle trending search clicks
+  const handleTrendingSearch = (searchType: string) => {
+    resetFilters() // Reset any existing filters
+    
+    if (searchType === 'latest') {
+      // Show the most recent game
+      setSearchQuery('latest')
+    } else if (searchType === 'currentWeek') {
+      // Filter by current week
+      setSelectedFilters({ season: `Week ${currentWeek}` })
+      setSearchQuery(`week ${currentWeek}`)
+    }
+    
+    setIsSearchOverlayOpen(true)
+    setTimeout(() => searchInputRef.current?.focus(), 100)
+  }
+
+  // Dropdown data with real NFL teams
   const dropdownData = {
-    season: ['2024/25', '2023/24', '2022/23', '2021/22'],
-    team: ['Eagles', 'Cowboys', 'Chiefs', 'Bills', 'Packers', 'Vikings'],
-    player: ['Mahomes', 'Allen', 'Rodgers', 'Brady', 'Prescott'],
-    gameType: ['Regular Season', 'Playoffs', 'Super Bowl', 'Preseason']
+    season: ['2025/26', '2024/25', '2023/24', '2022/23', '2021/22', '2020/21', '2019/20', '2018/19', '2017/18'],
+    team: ['Eagles', 'Cowboys', 'Chiefs', 'Bills', 'Packers', 'Vikings', 'Patriots', 'Dolphins', 'Steelers', 'Ravens', '49ers', 'Seahawks', 'Rams', 'Cardinals', 'Saints', 'Falcons'],
+    player: ['Mahomes', 'Allen', 'Rodgers', 'Jackson', 'Prescott', 'Herbert', 'Burrow', 'Tua'],
+    gameType: ['Regular', 'Playoffs']
   }
 
   return (
@@ -100,61 +252,85 @@ function App() {
               />
             </div>
             <div className="search-overlay-filter">
-              <div className={`filter-button ${activeDropdown === 'season' ? 'active' : ''}`} onClick={() => toggleDropdown('season')}>
-                <span>Season</span>
+              <div className={`filter-button ${activeDropdown === 'season' ? 'active' : ''} ${selectedFilters.season ? 'selected' : ''}`} onClick={() => toggleDropdown('season')}>
+                <span>{selectedFilters.season || 'Season'}</span>
                 <span className="filter-chevron">▼</span>
                 {activeDropdown === 'season' && (
                   <div className="dropdown-menu">
                     {dropdownData.season.map((item, index) => (
-                      <div key={index} className="dropdown-item">{item}</div>
+                      <div key={index} className="dropdown-item" onClick={() => handleFilterSelect('season', item)}>{item}</div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className={`filter-button ${activeDropdown === 'team' ? 'active' : ''}`} onClick={() => toggleDropdown('team')}>
-                <span>Team</span>
+              <div className={`filter-button ${activeDropdown === 'team' ? 'active' : ''} ${selectedFilters.team ? 'selected' : ''}`} onClick={() => toggleDropdown('team')}>
+                <span>{selectedFilters.team || 'Team'}</span>
                 <span className="filter-chevron">▼</span>
                 {activeDropdown === 'team' && (
                   <div className="dropdown-menu">
                     {dropdownData.team.map((item, index) => (
-                      <div key={index} className="dropdown-item">{item}</div>
+                      <div key={index} className="dropdown-item" onClick={() => handleFilterSelect('team', item)}>{item}</div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className={`filter-button ${activeDropdown === 'player' ? 'active' : ''}`} onClick={() => toggleDropdown('player')}>
-                <span>Player</span>
+              <div className={`filter-button ${activeDropdown === 'player' ? 'active' : ''} ${selectedFilters.player ? 'selected' : ''}`} onClick={() => toggleDropdown('player')}>
+                <span>{selectedFilters.player || 'Player'}</span>
                 <span className="filter-chevron">▼</span>
                 {activeDropdown === 'player' && (
                   <div className="dropdown-menu">
                     {dropdownData.player.map((item, index) => (
-                      <div key={index} className="dropdown-item">{item}</div>
+                      <div key={index} className="dropdown-item" onClick={() => handleFilterSelect('player', item)}>{item}</div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className={`filter-button ${activeDropdown === 'gameType' ? 'active' : ''}`} onClick={() => toggleDropdown('gameType')}>
-                <span>Game Type</span>
+              <div className={`filter-button ${activeDropdown === 'gameType' ? 'active' : ''} ${selectedFilters.gameType ? 'selected' : ''}`} onClick={() => toggleDropdown('gameType')}>
+                <span>{selectedFilters.gameType || 'Game Type'}</span>
                 <span className="filter-chevron">▼</span>
                 {activeDropdown === 'gameType' && (
                   <div className="dropdown-menu">
                     {dropdownData.gameType.map((item, index) => (
-                      <div key={index} className="dropdown-item">{item}</div>
+                      <div key={index} className="dropdown-item" onClick={() => handleFilterSelect('gameType', item)}>{item}</div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
             <div className="search-overlay-results">
-              <div className="season-indicator">2024/25</div>
-              <SearchResultGameCard teams="PHI vs DAL" date="Week 3" />
-              <SearchResultGameCard teams="KC vs BUF" date="Week 5" />
-              <SearchResultGameCard teams="GB vs MIN" date="Week 6" />
-              <SearchResultGameCard teams="NE vs MIA" date="Week 7" />
+              {isLoading && (
+                <div className="search-loading">Searching...</div>
+              )}
               
-              <div className="season-indicator">2022/23</div>
-              <SearchResultGameCard teams="PIT vs BAL" date="Week 8" />
-              <SearchResultGameCard teams="SF vs SEA" date="Week 9" />
+              {!isLoading && searchQuery && searchResults.length === 0 && (
+                <div className="search-no-results">No games found for "{searchQuery}"</div>
+              )}
+
+              {/* Always show Recent Games header and results */}
+              {!isLoading && (
+                <>
+                  <div className="season-indicator">Recent Games</div>
+                  <div className="search-results-container">
+                    {(searchQuery ? searchResults : searchResults)
+                      .sort((a, b) => {
+                        // Sort by actual game date (most recent first)
+                        const dateA = new Date(a.gameday);
+                        const dateB = new Date(b.gameday);
+                        return dateB.getTime() - dateA.getTime(); // Most recent date first
+                      })
+                      .map(game => (
+                        <SearchResultGameCard 
+                          key={game.game_id} 
+                          game={game}
+                          onClick={() => {
+                            // Handle game selection - you can add navigation logic here
+                            console.log('Selected game:', game.game_id)
+                          }}
+                        />
+                      ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -182,20 +358,63 @@ function App() {
           <div className="h-trending-container">
             <p className="h-trending-text">Trending Searches:</p>
             <div className="h-trending-labels">
-              <div className="h-trending-tag">Eagles vs Cowboys</div>
-              <div className="h-trending-tag">Week 3</div>
+              <div 
+                className="h-trending-tag" 
+                onClick={() => {
+                  resetFilters() // Reset any existing filters
+                  setSearchQuery('latest')
+                  setIsSearchOverlayOpen(true)
+                  setTimeout(() => searchInputRef.current?.focus(), 100)
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                {popularGames.length > 0 
+                  ? `${popularGames[0].away_team} vs ${popularGames[0].home_team}`
+                  : 'Eagles vs Cowboys'
+                }
+              </div>
+              <div 
+                className="h-trending-tag"
+                onClick={() => handleTrendingSearch('currentWeek')}
+                style={{ cursor: 'pointer' }}
+              >
+                Week {currentWeek}
+              </div>
             </div>
           </div>
         </div>
         <div className="h-popular-container">
           <p className="h-popular-text">Popular Searches:</p>
           <div className="h-game-cards">
-            <MinimizedGameCard teams="PHI vs DAL" date="Week 3" />
-            <MinimizedGameCard teams="KC vs BUF" date="Week 5" />
-            <MinimizedGameCard teams="GB vs MIN" date="Week 6" />
-            <MinimizedGameCard teams="NE vs MIA" date="Week 7" />
-            <MinimizedGameCard teams="PIT vs BAL" date="Week 8" />
-            <MinimizedGameCard teams="SF vs SEA" date="Week 9" />
+            {popularGames.length > 0 ? (
+              popularGames
+                .sort((a, b) => {
+                  // Sort by actual game date (most recent first)
+                  const dateA = new Date(a.gameday);
+                  const dateB = new Date(b.gameday);
+                  return dateB.getTime() - dateA.getTime(); // Most recent date first
+                })
+                .map(game => (
+                  <MinimizedGameCard 
+                    key={game.game_id} 
+                    game={game}
+                    onClick={() => {
+                      // Handle game selection - you can add navigation logic here
+                      console.log('Selected popular game:', game.game_id)
+                    }}
+                  />
+                ))
+            ) : (
+              // Fallback to default cards while loading
+              <>
+                <MinimizedGameCard teams="PHI vs DAL" date="Week 3" />
+                <MinimizedGameCard teams="KC vs BUF" date="Week 5" />
+                <MinimizedGameCard teams="GB vs MIN" date="Week 6" />
+                <MinimizedGameCard teams="NE vs MIA" date="Week 7" />
+                <MinimizedGameCard teams="PIT vs BAL" date="Week 8" />
+                <MinimizedGameCard teams="SF vs SEA" date="Week 9" />
+              </>
+            )}
           </div>
         </div>
       </div>
