@@ -10,6 +10,7 @@ import logging
 from game import Game, Simulator
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 # class NumpyEncoder(json.JSONEncoder):
 #     def default(self, obj):
 #         if isinstance(obj, (np.integer, np.int64)):
@@ -291,6 +292,27 @@ def load_game_pbp(game_id):
         logger.info(f"Loaded game {game_id}: {game.away} vs {game.home}, final score {game.away_score}-{game.home_score}")
         
         for i, play in enumerate(plays):
+            # Determine play type from the play object
+            play_type = 'UNKNOWN'
+            if hasattr(play, '__class__'):
+                class_name = play.__class__.__name__
+                if class_name == 'PassEvent':
+                    play_type = 'PASS'
+                elif class_name == 'InterceptionEvent':
+                    play_type = 'INTERCEPTION'
+                elif class_name == 'RushEvent':
+                    play_type = 'RUSH'
+                elif class_name == 'FieldGoalEvent':
+                    play_type = 'FIELD_GOAL'
+                elif class_name == 'XPEvent':
+                    play_type = 'XP_KICK'
+                elif class_name == 'PAT2Event':
+                    play_type = 'PAT2'
+                elif class_name == 'PuntEvent':
+                    play_type = 'PUNT'
+                elif class_name == 'PenaltyEvent':
+                    play_type = 'PENALTY'
+            
             data['plays'][int(i)] = {
                 'desc': clean_description(safe_convert(play.desc)),
                 'home_score': safe_convert(play.home_score),
@@ -306,6 +328,7 @@ def load_game_pbp(game_id):
                 'yards_gained': safe_convert(play.yards_gained),
                 'score_differential': safe_convert(play.score_differential),
                 'posteam': safe_convert(play.posteam),
+                'play_type': play_type,
                 'changeable_attributes': play.get_changeable_attributes()
             }
         return jsonify(data)
@@ -315,39 +338,100 @@ def load_game_pbp(game_id):
 
 @app.route('/api/simulate/', methods=['POST'])
 def simulate_rest_of_game():
+    print("=" * 80)
+    print("🚀 SIMULATION REQUEST RECEIVED")
+    print("=" * 80)
+    
     data = request.get_json()
-    print(data)
-    game = Game(data['game_id'], int(data['game_id'][:4]))
-    game_id = data['game_id']
-    simulator = Simulator(game)
-    plays = simulator.simulate_from(data["changeable_attributes"], data['start_play_index'], game.plays[data['start_play_index']])
-    avg = simulator.monte_carlo(data["changeable_attributes"], data['start_play_index'], game.plays[data['start_play_index']])
-    data = {}
-    data['game_id'] = game_id
-    data['plays'] = {}
-    data['avg_scores'] = avg
-    last_row = plays[len(plays)-1]
-    data['final_score'] = {game.home : last_row.home_score, game.away : last_row.away_score}
-    for i, play in enumerate(plays):
-        if i < len(plays)-1:
-            data['plays'][int(i)] = {
-                'desc': play.desc,
-                'home_score': play.home_score,
-                'away_score': play.away_score,
-                'qtr': play.qtr,
-                'quarter_seconds_remaining': play.quarter_seconds_remaining,
-                'half_seconds_remaining': play.half_seconds_remaining,
-                'game_seconds_remaining': play.game_seconds_remaining,
-                'down': play.down,
-                'to_go': play.to_go,
-                'yrdln': play.yrdln,
-                'yardline_100': play.yardline_100,
-                'yards_gained': play.yards_gained,
-                'score_differential': play.score_differential,
-                'posteam': play.posteam,
-                'changeable_attributes': play.get_changeable_attributes()
-            }
-    return jsonify(data)
+    print(f"📥 Raw request data: {data}")
+    
+    try:
+        game_id = data['game_id']
+        changeable_attributes = data["changeable_attributes"]
+        start_play_index = data['start_play_index']
+        
+        print(f"🎮 Game ID: {game_id}")
+        print(f"🔧 Changeable attributes: {changeable_attributes}")
+        print(f"📍 Start play index: {start_play_index}")
+        
+        print("\n🔄 Creating Game object...")
+        game = Game(game_id, int(game_id[:4]))
+        print(f"✅ Game created: {game.away} vs {game.home}")
+        print(f"📊 Total plays loaded: {len(game.plays)}")
+        
+        print(f"\n🎯 Getting play at index {start_play_index}...")
+        if start_play_index >= len(game.plays):
+            print(f"❌ ERROR: Play index {start_play_index} out of range (max: {len(game.plays)-1})")
+            return jsonify({"error": f"Play index {start_play_index} out of range"}), 400
+            
+        target_play = game.plays[start_play_index]
+        print(f"✅ Target play: {target_play}")
+        print(f"🏷️ Play type: {type(target_play).__name__}")
+        print(f"🔧 Play changeable attributes: {target_play.get_changeable_attributes()}")
+        
+        print(f"\n🎲 Creating Simulator...")
+        simulator = Simulator(game)
+        print("✅ Simulator created")
+        
+        print(f"\n🎯 Running simulation from play {start_play_index}...")
+        print(f"🔧 With attributes: {changeable_attributes}")
+        
+        plays = simulator.simulate_from(changeable_attributes, start_play_index, target_play)
+        print(f"✅ Simulation completed! Generated {len(plays)} plays")
+        
+        print(f"\n📊 Running Monte Carlo analysis...")
+        avg = simulator.monte_carlo(changeable_attributes, start_play_index, target_play)
+        print(f"✅ Monte Carlo completed! Results: {avg}")
+        
+        print(f"\n📦 Preparing response...")
+        response_data = {}
+        response_data['game_id'] = game_id
+        response_data['plays'] = {}
+        response_data['avg_scores'] = avg
+        
+        if plays:
+            last_row = plays[len(plays)-1]
+            response_data['final_score'] = {game.home : last_row.home_score, game.away : last_row.away_score}
+            print(f"🏆 Final score: {game.home} {last_row.home_score} - {last_row.away_score} {game.away}")
+            
+            for i, play in enumerate(plays):
+                if i < len(plays)-1:
+                    response_data['plays'][int(i)] = {
+                        'desc': play.desc,
+                        'home_score': play.home_score,
+                        'away_score': play.away_score,
+                        'qtr': play.qtr,
+                        'quarter_seconds_remaining': play.quarter_seconds_remaining,
+                        'half_seconds_remaining': play.half_seconds_remaining,
+                        'game_seconds_remaining': play.game_seconds_remaining,
+                        'down': play.down,
+                        'to_go': play.to_go,
+                        'yrdln': play.yrdln,
+                        'yardline_100': play.yardline_100,
+                        'yards_gained': play.yards_gained,
+                        'score_differential': play.score_differential,
+                        'posteam': play.posteam,
+                        'changeable_attributes': play.get_changeable_attributes()
+                    }
+        
+        print(f"✅ Response prepared with {len(response_data['plays'])} plays")
+        print("=" * 80)
+        print("🎉 SIMULATION COMPLETED SUCCESSFULLY!")
+        print("=" * 80)
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print("=" * 80)
+        print("❌ SIMULATION FAILED!")
+        print("=" * 80)
+        print(f"🚨 Error type: {type(e).__name__}")
+        print(f"🚨 Error message: {str(e)}")
+        print(f"🚨 Full traceback:")
+        import traceback
+        traceback.print_exc()
+        print("=" * 80)
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     # Load data on startup if running directly

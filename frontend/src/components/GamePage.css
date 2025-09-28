@@ -2,6 +2,59 @@
    GAME PAGE COMPONENT STYLES
    ============================================ */
 
+/* Simulation Loading and Results Styles */
+.simulation-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.simulation-loading .loading-spinner {
+  font-size: 1.2rem;
+  color: #666;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.simulation-results {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.simulation-results h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.final-score-prediction {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #e8f5e8;
+  border-radius: 6px;
+  border-left: 4px solid #28a745;
+}
+
+.final-score-prediction h5 {
+  margin: 0 0 0.5rem 0;
+  color: #155724;
+  font-size: 1rem;
+}
+
+.final-score-prediction p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #155724;
+}
+
 .game-page {
   width: 100vw;
   height: 100vh;

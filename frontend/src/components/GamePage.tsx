@@ -52,6 +52,10 @@ const GamePage = ({ gameId }: GamePageProps) => {
   // State management for card interactions - single layer only
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
   const [affectedCards, setAffectedCards] = useState<Set<number>>(new Set())
+  
+  // State for simulation results
+  const [simulationResults, setSimulationResults] = useState<any>(null)
+  const [isSimulating, setIsSimulating] = useState(false)
 
   // Fetch game data from Python backend
   useEffect(() => {
@@ -110,8 +114,8 @@ const GamePage = ({ gameId }: GamePageProps) => {
             console.log('Created game data:', mockGame)
             setGameData(mockGame)
             
-            // Convert plays to events format
-            const events = Object.values(response.plays || {}).map((play: any) => ({
+            // Convert plays to events format - preserve original indices
+            const events = Object.entries(response.plays || {}).map(([originalIndex, play]: [string, any]) => ({
               team: play.posteam || 'TBD',
               score: `${play.away_score}-${play.home_score}`,
               action: play.desc?.split(' ')[0] || 'Play',
@@ -119,14 +123,19 @@ const GamePage = ({ gameId }: GamePageProps) => {
               timeRemaining: formatTimeRemaining(play.quarter_seconds_remaining),
               description: play.desc || 'No description',
               downAndDistance: play.down ? `${play.down} & ${play.to_go} at ${play.yrdln}` : 'N/A',
-              isFailure: false // Default to not failure
+              isFailure: false, // Default to not failure
+              // New props for changeable events - use original index from backend
+              playIndex: parseInt(originalIndex),
+              playType: play.play_type || 'UNKNOWN',
+              changeableAttributes: play.changeable_attributes || null
             }))
             
             console.log('Created events:', events.length, 'events')
             console.log('First few events:', events.slice(0, 3))
             
-            // Reverse to show latest plays first
-            setGameEvents(events.reverse())
+            // Sort by play index and reverse to show latest plays first
+            const sortedEvents = events.sort((a, b) => a.playIndex - b.playIndex).reverse()
+            setGameEvents(sortedEvents)
           }
         }
         
@@ -204,6 +213,7 @@ const GamePage = ({ gameId }: GamePageProps) => {
       // Untrigger current card - clear everything
       setActiveCardIndex(null)
       setAffectedCards(new Set())
+      setSimulationResults(null)
     } else {
       // Set new active card and mark cards above as affected
       setActiveCardIndex(cardIndex)
@@ -213,6 +223,46 @@ const GamePage = ({ gameId }: GamePageProps) => {
       }
       setAffectedCards(newAffectedCards)
     }
+  }
+
+  // Handle simulation when a changeable event is modified
+  const handleSimulate = async (playIndex: number, changeableAttributes: any) => {
+    console.log("=" * 80)
+    console.log("🚀 FRONTEND SIMULATION REQUEST")
+    console.log("=" * 80)
+    console.log("🎮 Game ID:", gameId)
+    console.log("📍 Play Index:", playIndex)
+    console.log("🔧 Changeable Attributes:", changeableAttributes)
+    console.log("📊 Game Events Length:", gameEvents.length)
+    console.log("📋 All Game Events:", gameEvents)
+    
+    if (!gameId) {
+      console.log("❌ No game ID available")
+      return
+    }
+    
+    try {
+      setIsSimulating(true)
+      console.log("🔄 Set isSimulating to true")
+      console.log(`📡 Simulating play ${playIndex} with attributes:`, changeableAttributes)
+      
+      const result = await nflApiService.simulateGame(gameId, changeableAttributes, playIndex)
+      console.log("✅ Simulation result received:", result)
+      
+      setSimulationResults(result)
+      console.log("📊 Set simulation results:", result)
+    } catch (error) {
+      console.log("❌ Simulation failed:", error)
+      console.error('Simulation error:', error)
+      setError('Failed to run simulation')
+    } finally {
+      setIsSimulating(false)
+      console.log("🔄 Set isSimulating to false")
+    }
+    
+    console.log("=" * 80)
+    console.log("🎉 FRONTEND SIMULATION COMPLETED")
+    console.log("=" * 80)
   }
 
   return (
@@ -319,7 +369,11 @@ const GamePage = ({ gameId }: GamePageProps) => {
                     downAndDistance={event.downAndDistance}
                     cardState={cardState}
                     isFailure={event.isFailure}
-                  onToggle={() => handleCardToggle(index)}
+                    onToggle={() => handleCardToggle(index)}
+                    playIndex={event.playIndex}
+                    playType={event.playType}
+                    changeableAttributes={event.changeableAttributes}
+                    onSimulate={handleSimulate}
                   />
                 </div>
               )
@@ -343,27 +397,64 @@ const GamePage = ({ gameId }: GamePageProps) => {
               {/* Simulated Statistics Section */}
               <div className="analysis-section">
                 <div className="input-container">
-                  <table className="analysis-table">
-                    <thead>
-                      <tr>
-                        <th></th>
-                        <th>{team1Code}</th>
-                        <th>{team2Code}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Simulated Win %</td>
-                        <td>TBD</td>
-                        <td>TBD</td>
-                      </tr>
-                      <tr>
-                        <td>Simulated Avg Score</td>
-                        <td>TBD</td>
-                        <td>TBD</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  {isSimulating ? (
+                    <div className="simulation-loading">
+                      <div className="loading-spinner">Running simulation...</div>
+                    </div>
+                  ) : simulationResults ? (
+                    <div className="simulation-results">
+                      <h4>Simulation Results</h4>
+                      <table className="analysis-table">
+                        <thead>
+                          <tr>
+                            <th></th>
+                            <th>{team1Code}</th>
+                            <th>{team2Code}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>Win Probability</td>
+                            <td>{simulationResults.avg_scores?.[team1Code]?.win_pct ? `${(simulationResults.avg_scores[team1Code].win_pct * 100).toFixed(1)}%` : 'N/A'}</td>
+                            <td>{simulationResults.avg_scores?.[team2Code]?.win_pct ? `${(simulationResults.avg_scores[team2Code].win_pct * 100).toFixed(1)}%` : 'N/A'}</td>
+                          </tr>
+                          <tr>
+                            <td>Average Score</td>
+                            <td>{simulationResults.avg_scores?.[team1Code]?.score ? simulationResults.avg_scores[team1Code].score.toFixed(1) : 'N/A'}</td>
+                            <td>{simulationResults.avg_scores?.[team2Code]?.score ? simulationResults.avg_scores[team2Code].score.toFixed(1) : 'N/A'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      {simulationResults.final_score && (
+                        <div className="final-score-prediction">
+                          <h5>Projected Final Score</h5>
+                          <p>{team1Code} {simulationResults.final_score[team1Code]} - {simulationResults.final_score[team2Code]} {team2Code}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <table className="analysis-table">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>{team1Code}</th>
+                          <th>{team2Code}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Simulated Win %</td>
+                          <td>TBD</td>
+                          <td>TBD</td>
+                        </tr>
+                        <tr>
+                          <td>Simulated Avg Score</td>
+                          <td>TBD</td>
+                          <td>TBD</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             </div>

@@ -165,6 +165,77 @@ class InterceptionEvent(PlayEvent):
 class RushEvent(PlayEvent):
     def __init__(self, *args, ):
         super().__init__(*args)
+    def get_changeable_attributes(self):
+        return {'is_fumble': False, 'convert_down': False}
+    def reroll(self, new_attrs, simulator):
+        print(f"\n🎯 RushEvent.reroll() called!")
+        print(f"🔧 New attributes: {new_attrs}")
+        print(f"📊 Original play: {self}")
+        print(f"🏷️ Play type: {type(self).__name__}")
+        
+        state = GameState(self)
+        print(f"📊 Game state: Down {state.down}, {state.to_go} to go at {state.yardline_100}")
+        
+        num = random.random()
+        print(f"🎲 Random number: {num}")
+        
+        if new_attrs.get('is_fumble', False):
+            print("💥 SIMULATING FUMBLE!")
+            # Simulate fumble - create a fumble event with limited yards
+            yards_gained = min(3, self.yards_gained)  # Limited gain before fumble
+            print(f"📏 Yards gained before fumble: {yards_gained}")
+            
+            new_play = RushEvent(
+                "Simulated rush play with fumble, gain of " + str(yards_gained) + " yards before fumble",
+                state.home_score,
+                state.away_score,
+                state.qtr,
+                state.quarter_seconds_remaining,
+                state.half_seconds_remaining,
+                state.game_seconds_remaining,
+                state.down + 1 if state.to_go > yards_gained else 1,
+                state.to_go - yards_gained if state.to_go > yards_gained else 10,
+                simulator.format_field_position(max(0, state.yardline_100 - yards_gained), state.posteam, simulator.game.home, simulator.game.away),
+                max(0, state.yardline_100 - yards_gained),
+                yards_gained,
+                state.score_differential,
+                state.posteam
+            )
+            print(f"✅ Created fumble play: {new_play}")
+            return new_play
+            
+        elif new_attrs.get('convert_down', False):
+            print("🏈 SIMULATING DOWN CONVERSION!")
+            # Simulate successful down conversion
+            yards_needed = state.to_go
+            yards_gained = yards_needed + random.randint(1, 5)  # Extra yards for conversion
+            print(f"📏 Yards needed: {yards_needed}, Yards gained: {yards_gained}")
+            
+            new_play = RushEvent(
+                "Simulated rush play, gain of " + str(yards_gained) + " yards. First down conversion!",
+                state.home_score,
+                state.away_score,
+                state.qtr,
+                state.quarter_seconds_remaining,
+                state.half_seconds_remaining,
+                state.game_seconds_remaining,
+                1,  # First down
+                10,  # Reset to 10 yards
+                simulator.format_field_position(max(0, state.yardline_100 - yards_gained), state.posteam, simulator.game.home, simulator.game.away),
+                max(0, state.yardline_100 - yards_gained),
+                yards_gained,
+                state.score_differential,
+                state.posteam
+            )
+            print(f"✅ Created conversion play: {new_play}")
+            return new_play
+            
+        else:
+            print("🏃 SIMULATING NORMAL RUSH PLAY!")
+            # Normal rush play
+            new_play = simulator.simulate_rush(state, num)
+            print(f"✅ Created normal rush play: {new_play}")
+            return new_play
     def __str__(self):   
         return super().__str__() + " " + f"Rush"
     
@@ -391,20 +462,68 @@ class Simulator:
         return {self.game.home: {'score': avg_home_score, 'win_pct': home_win_rate}, self.game.away: {'score': avg_away_score, 'win_pct': away_win_rate}}
 
     def simulate_from(self, changeable_attrs, start_play_index, change_play):
+        print(f"\n🎯 Simulator.simulate_from() called!")
+        print(f"🔧 Changeable attributes: {changeable_attrs}")
+        print(f"📍 Start play index: {start_play_index}")
+        print(f"🎮 Change play: {change_play}")
+        print(f"🏷️ Change play type: {type(change_play).__name__}")
+        
+        print(f"\n🔄 Creating initial game state...")
         state = GameState(change_play)
-        change_play = change_play.reroll(changeable_attrs, self)
+        print(f"📊 Initial game state: Q{state.qtr}, {state.down}&{state.to_go} at {state.yardline_100}")
+        
+        print(f"\n🎲 Calling change_play.reroll()...")
+        try:
+            change_play = change_play.reroll(changeable_attrs, self)
+            print(f"✅ Reroll successful! New play: {change_play}")
+        except Exception as e:
+            print(f"❌ Reroll failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e
+        
+        print(f"\n🔄 Updating game state after reroll...")
         state = GameState(change_play)
+        print(f"📊 Updated game state: Q{state.qtr}, {state.down}&{state.to_go} at {state.yardline_100}")
+        
+        print(f"\n📋 Building play history...")
         last_plays = self.game.plays[:start_play_index] + [change_play]
-        while state.playing:
-            next_play = self.simulate_next_play(state)
-            if type(next_play) == tuple:
-                last_plays.append(next_play[0])
-                last_plays.append(next_play[1])
-                state = GameState(next_play[1])
-            else:
-                last_plays.append(next_play)
-                state = GameState(next_play)
-        return last_plays[:len(last_plays)-1]
+        print(f"📊 Play history: {len(last_plays)} plays (original {len(self.game.plays[:start_play_index])} + 1 rerolled)")
+        
+        play_count = 0
+        max_plays = 50  # Safety limit
+        
+        print(f"\n🎮 Starting simulation loop...")
+        while state.playing and play_count < max_plays:
+            play_count += 1
+            print(f"\n🔄 Simulation play {play_count}: Q{state.qtr}, {state.down}&{state.to_go} at {state.yardline_100}")
+            
+            try:
+                next_play = self.simulate_next_play(state)
+                print(f"🎯 Next play generated: {type(next_play).__name__}")
+                
+                if type(next_play) == tuple:
+                    print(f"📦 Tuple play: {len(next_play)} plays")
+                    last_plays.append(next_play[0])
+                    last_plays.append(next_play[1])
+                    state = GameState(next_play[1])
+                    print(f"📊 State updated from tuple play")
+                else:
+                    print(f"📦 Single play: {next_play}")
+                    last_plays.append(next_play)
+                    state = GameState(next_play)
+                    print(f"📊 State updated from single play")
+                    
+            except Exception as e:
+                print(f"❌ Error generating next play: {e}")
+                import traceback
+                traceback.print_exc()
+                break
+        
+        print(f"\n✅ Simulation completed! Generated {len(last_plays)} total plays")
+        result = last_plays[:len(last_plays)-1]
+        print(f"📊 Returning {len(result)} plays")
+        return result
         
     def simulate_completion(self, state, num):
         yards_gained = max(-5, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_pass'], 4)))

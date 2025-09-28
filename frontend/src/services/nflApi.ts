@@ -88,15 +88,24 @@ class NFLApiService {
   }
 
   async simulateGame(gameId: string, changeableAttributes: any, startPlayIndex: number): Promise<any> {
+    console.log("=" * 80)
+    console.log("🌐 NFL API SERVICE - SIMULATION REQUEST")
+    console.log("=" * 80)
+    console.log("🎮 Game ID:", gameId)
+    console.log("🔧 Changeable Attributes:", changeableAttributes)
+    console.log("📍 Start Play Index:", startPlayIndex)
+    
     try {
-      console.log(`Simulating game ${gameId} from play ${startPlayIndex}:`, changeableAttributes);
+      console.log(`📡 Simulating game ${gameId} from play ${startPlayIndex}:`, changeableAttributes);
       const url = `${API_BASE_URL}/simulate/`;
+      console.log("🔗 API URL:", url);
       
       const requestBody = {
         game_id: gameId,
         changeable_attributes: changeableAttributes,
         start_play_index: startPlayIndex
       };
+      console.log("📦 Request Body:", requestBody);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -106,19 +115,27 @@ class NFLApiService {
         body: JSON.stringify(requestBody)
       });
       
-      console.log(`Simulation response status: ${response.status}`);
+      console.log(`📡 Simulation response status: ${response.status}`);
+      console.log(`📡 Response ok: ${response.ok}`);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Simulation API error: ${errorText}`);
+        console.error(`❌ Simulation API error: ${errorText}`);
         throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
       }
       
       const data = await response.json();
-      console.log(`Simulation result:`, data);
+      console.log(`✅ Simulation result received:`, data);
+      console.log("=" * 80)
+      console.log("🎉 NFL API SERVICE - SIMULATION SUCCESS")
+      console.log("=" * 80)
       
       return data;
     } catch (error) {
+      console.log("❌ NFL API Service Error:", error);
+      console.log("=" * 80)
+      console.log("💥 NFL API SERVICE - SIMULATION FAILED")
+      console.log("=" * 80)
       console.error('Error simulating game:', error);
       throw error;
     }
