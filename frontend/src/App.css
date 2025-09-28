@@ -66,16 +66,16 @@ transform-origin: top;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  font-family: "GT Standard";
+  font-family: "GT Standard Expanded Bold Oblique";
   font-size: 75px;
-  font-weight: 800;
-  font-style: italic;
+  font-weight: 700;
+  font-style: oblique;
   line-height: normal;
 }
 
 .h-header h2 {
   font-family: "GT Standard";
-  font-size: 40px;
+  font-size: 30px;
   font-weight: 300;
   margin: 0;
 }
@@ -359,11 +359,50 @@ padding: 20px 25px 30px 25px;
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: searchOverlayFadeIn 0.15s ease-out forwards;
+}
 
+@keyframes searchOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.search-overlay-close-btn {
+  position: absolute;
+  top:50px;
+  left: 60px;
+  width: 90px;
+  height: 45px;
+  border-radius: 22px;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(15px);
+  color: #222;
+  font-family: "GT Standard";
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.search-overlay-close-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 1);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .search-overlay-content {
-  background: rgba(255, 255, 255, 0.4);
+  background: linear-gradient(0deg, rgba(248, 242, 255, 0.85) 0%, rgba(251, 238, 255, 0.85) 100%);
   border: 3px solid white;
   border-radius: 1.5rem;
   box-shadow: 0 20px 60px rgba(255, 255, 255, 0.3);
@@ -374,6 +413,18 @@ padding: 20px 25px 30px 25px;
   flex-direction: column;
   gap: 0;
   padding: 0;
+  animation: searchContentSlideUp 0.2s ease-out forwards;
+}
+
+@keyframes searchContentSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .search-overlay-search {
@@ -382,7 +433,7 @@ padding: 20px 25px 30px 25px;
   border-left: 2px solid white;
   border-right: 2px solid white;
   border-top: 2px solid white;
-  border-bottom: none;
+  border-bottom: 2px solid white;
   border-radius: 1.2rem 1.2rem 0 0;
   padding: 5px 20px;
   flex: 1;
@@ -433,7 +484,7 @@ padding: 20px 25px 30px 25px;
   background: rgba(255, 255, 255, 0.55);
   box-shadow: 0 0 5.5px 0 rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(13.649999618530273px);
-  padding: 6px 15px;
+  padding: 6px 25px;
   font-family: "GT Standard";
   font-size: 20px;
   font-weight: 300;
@@ -448,6 +499,46 @@ padding: 20px 25px 30px 25px;
 .filter-chevron {
   font-size: 12px;
   color: #666;
+  transition: transform 0.2s ease;
+}
+
+.filter-button.active .filter-chevron {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu Styles */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.90);
+  border: 1px solid #FFF;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(50px);
+  z-index: 1000;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  padding: 10px 15px;
+  font-family: "GT Standard";
+  font-size: 16px;
+  font-weight: 400;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  backdrop-filter: blur(50px);
+}
+
+.dropdown-item:hover {
+  background-color: rgba(128, 0, 255, 0.1);
+}
+
+.filter-button {
+  position: relative;
 }
 
 .search-overlay-results {
@@ -455,8 +546,122 @@ padding: 20px 25px 30px 25px;
   border: 2px solid white;
   border-radius: 0;
   padding: 20px;
+  padding-top: 0px;
   flex: 1;
-  min-height: 400px;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.season-indicator {
+  font-family: "GT Standard";
+  font-size: 18px;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 0px;
+  margin-top: 13px;
+  margin-left: 20px;
+}
+
+/* Search Result Game Card Styles */
+.search-result-card {
+  background-color: #FFFFFF;
+  border: none;
+  border-radius: 5rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 20px;
+  cursor: pointer;
+}
+
+.search-result-card:hover {
+  /* No hover effects */
+}
+
+.search-result-left-team {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+}
+
+.search-result-left-team .search-result-score {
+  margin-left: 45px;
+}
+
+.search-result-right-team {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.search-result-right-team .search-result-score {
+  margin-right: 50px;
+}
+
+.search-result-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 0 30px;
+}
+
+.search-result-logo {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.search-result-right-team .search-result-team-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+
+.search-result-city-name {
+  font-size: 14px;
+  font-weight: 400;
+  font-family: "GT Standard";
+  color: #000000;
+}
+
+.search-result-mascot-name {
+  font-size: 20px;
+  font-weight: 900;
+  font-family: "GT Standard";
+  color: #000000;
+  line-height: 95%;
+}
+
+.search-result-score {
+  font-size: 40px;
+  font-weight: 800;
+  font-family: "GT Standard";
+  color: #000000;
+}
+
+.search-result-week {
+  font-size: 14px;
+  font-weight: 400;
+  font-family: "GT Standard";
+  color: #333;
+}
+
+.search-result-date {
+  font-size: 14px;
+  font-weight: 400;
+  font-family: "GT Standard";
+  color: #333;
 }
 
 .h-scale-wrapper.blurred {
