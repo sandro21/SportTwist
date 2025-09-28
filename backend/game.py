@@ -3,6 +3,17 @@ import pandas as pd
 import math
 import random
 
+def format_field_position(yardline_100, posteam, home_team, away_team):
+        if yardline_100 > 50:
+            yard_line = 50 - (yardline_100 - 50)
+            return f"{posteam} {yard_line}"
+        elif yardline_100 == 50:
+            return "50"
+        else:
+            opponent = away_team if posteam == home_team else home_team
+            yard_line = yardline_100
+            return f"{opponent} {yard_line}"
+        
 def get_team_season_stats(team: str, year: int) -> dict:
     pbp = nfl.load_pbp([year]).to_pandas()
     df = pbp[(pbp.posteam == team) | (pbp.defteam == team)].copy()
@@ -100,6 +111,10 @@ class PlayEvent:
         self.yards_gained = yards_gained
         self.score_differential = score_differential
         self.posteam = posteam
+
+    def get_changeable_attributes(self):
+        pass
+
     def __str__(self):
         minutes = int(self.quarter_seconds_remaining // 60)
         seconds = int(self.quarter_seconds_remaining % 60)
@@ -116,12 +131,34 @@ class PassEvent(PlayEvent):
     def __init__(self, *args, is_complete,):
         super().__init__(*args)
         self.is_complete = is_complete
+    def get_changeable_attributes(self):
+        return {'is_complete': self.is_complete, 'is_interception': False}
+    def reroll(self, new_attrs, simulator):
+        state = GameState(self)
+        num = random.random()
+        if new_attrs['is_interception']:
+            return simulator.simulate_interception(state, num)
+        elif new_attrs['is_complete']:
+            return simulator.simulate_completion(state, num)
+        else:
+            return simulator.simulate_incompletion(state, num)
     def __str__(self):
         return super().__str__() + "; " + f"Pass: {'Complete' if self.is_complete else 'Incomplete'}"
 
 class InterceptionEvent(PlayEvent):
     def __init__(self, *args):
         super().__init__(*args)
+    def get_changeable_attributes(self):
+        return {'is_complete': False, 'is_interception': True}
+    def reroll(self, new_attrs, simulator):
+        state = GameState(self)
+        num = random.random()
+        if new_attrs['is_interception']:
+            return simulator.simulate_interception(state, num)
+        elif new_attrs['is_complete']:
+            return simulator.simulate_completion(state, num)
+        else:
+            return simulator.simulate_incompletion(state, num)
     def __str__(self):   
         return super().__str__() + "; " + f"Interception! Now in possession of the other team."
 
@@ -134,6 +171,23 @@ class RushEvent(PlayEvent):
 class PuntEvent(PlayEvent):
     def __init__(self, *args, ):
         super().__init__(*args)
+    def get_changeable_attributes(self):
+        return {'punt_it': False}
+    def reroll(self, new_attrs, simulator):
+        state = GameState(self)
+        num = random.random()
+        if new_attrs['punt_it']:
+            return simulator.simulate_punt(state, num)
+        else:
+            if num < .7:
+                return simulator.simulate_rush(state, num)
+            else:
+                if num < self.game.stats[state.posteam]['completion_prob']:
+                    return self.simulate_completion(state, num)
+                elif num < self.game.stats[state.posteam]['completion_prob'] + self.game.stats[state.posteam]['interception_prob']:
+                    return self.simulate_interception(state, num)
+                else:
+                    return self.simulate_incompletion(state, num)
     def __str__(self):   
         return super().__str__() + " " + f"Punt"
 
@@ -141,6 +195,12 @@ class FieldGoalEvent(PlayEvent):
     def __init__(self, *args, is_good):
         super().__init__(*args)
         self.is_good = is_good
+    def get_changeable_attributes(self):
+        return {'made': self.is_good}
+    def reroll(self, new_attrs, simulator):
+            state = GameState(self)
+            num = random.random()
+            return simulator.simulate_field_goal(state, num, made=True)
     def __str__(self):   
         return super().__str__() + " " + f"Field Goal: {'Good' if self.is_good else 'No Good'}."
 
@@ -148,6 +208,15 @@ class XPEvent(PlayEvent):
     def __init__(self, *args, is_good):
         super().__init__(*args)
         self.is_good = is_good
+    def get_changeable_attributes(self):
+        return {'made': self.is_good, 'is_one_point': True,}
+    def reroll(self, new_attrs, simulator):
+        state = GameState(self)
+        num = random.random()
+        if new_attrs['is_one_point']:
+            return simulator.simulate_xpat(state, num, made=new_attrs['made'])
+        else:
+            return simulator.simulate_2pat(state, num, made=new_attrs['made'])
     def __str__(self):   
         return super().__str__() + " " + f"Extra Point: {'Good' if self.is_good else 'No Good'}."
     
@@ -155,6 +224,15 @@ class PAT2Event(PlayEvent):
     def __init__(self, *args, is_good):
         super().__init__(*args)
         self.is_good = is_good
+    def get_changeable_attributes(self):
+        return {'made': self.is_good, 'is_one_point': False}
+    def reroll(self, new_attrs, simulator):
+        state = GameState(self)
+        num = random.random()
+        if new_attrs['is_one_point']:
+            return simulator.simulate_xpat(state, num, made=new_attrs['made'])
+        else:
+            return simulator.simulate_2pat(state, num, made=new_attrs['made'])
     def __str__(self):   
         return super().__str__() + " " + f"2 Point Attempt: {'Good' if self.is_good else 'No Good'}."
 
@@ -163,6 +241,13 @@ class PenaltyEvent(PlayEvent):
         super().__init__(*args)
         self.penalty_type = penalty_type
         self.penalty_yards = penalty_yards
+    def get_changeable_attributes(self):
+        return {'called': True}
+    def reroll(self, new_attrs, simulator):
+        if not new_attrs['called']:
+            return simulator.simulate_next_play(GameState(self))
+        else:
+            return self
     def __str__(self):
         return super().__str__() + " " + f"Penalty: {self.penalty_type} for {self.penalty_yards} yards."
 
@@ -192,7 +277,7 @@ class Game:
                 play = PassEvent(*base_args,
                                  is_complete=row.complete_pass,)
             elif row.play_type_nfl == "INTERCEPTION":
-                play = PassEvent(*base_args)
+                play = InterceptionEvent(*base_args)
             elif row.play_type_nfl == "RUSH":
                 play = RushEvent(*base_args,)
             elif row.play_type_nfl == "PUNT":
@@ -287,9 +372,11 @@ class Simulator:
         
         return "PAT2" if random.random() < max(0.01, probability)  else "XP_KICK"
 
-    def simulate_from(self, start_play_index, new_play):
-        last_plays = self.game.plays[:start_play_index] + [new_play]
-        state = GameState(new_play)
+    def simulate_from(self, changeable_attrs, start_play_index, change_play):
+        state = GameState(change_play)
+        change_play = change_play.reroll(changeable_attrs, self)
+        state = GameState(change_play)
+        last_plays = self.game.plays[:start_play_index] + [change_play]
         while state.playing:
             next_play = self.simulate_next_play(state)
             if type(next_play) == tuple:
@@ -301,121 +388,39 @@ class Simulator:
                 state = GameState(next_play)
         return last_plays
         
-    def simulate_next_play(self, state):
-        def format_field_position(yardline_100, posteam, home_team, away_team):
-            if yardline_100 > 50:
-                yard_line = 50 - (yardline_100 - 50)
-                return f"{posteam} {yard_line}"
-            elif yardline_100 == 50:
-                return "50"
+    def simulate_completion(self, state, num):
+        yards_gained = max(-5, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_pass'], 4)))
+        is_complete = True
+        if state.yardline_100 - yards_gained <= 0:
+            state.home_score += 6 if state.posteam == self.game.home else 0
+            state.away_score += 6 if state.posteam == self.game.away else 0
+            state.score_differential = state.home_score - state.away_score
+            pass_event = PassEvent(
+                "Simulated pass play: " + ("complete" if is_complete else "incomplete") + ", gain of " + str(yards_gained) + " yards. Touchdown by " + state.posteam + "!",
+                state.home_score,
+                state.away_score,
+                state.qtr,
+                state.quarter_seconds_remaining,
+                state.half_seconds_remaining,
+                state.game_seconds_remaining,
+                1,
+                10,
+                state.posteam + " " + str(max(0, state.yardline_100 - yards_gained)) if max(0, state.yardline_100 - yards_gained) > 50 else self.game.away if state.posteam == self.game.home else self.game.home  + " " + str(max(0, state.yardline_100 - yards_gained)),
+                75,
+                yards_gained,
+                state.score_differential,
+                self.game.away if state.posteam == self.game.home else self.game.home,
+                is_complete=True
+            )
+            pat_type = self.decide_pat_type(state)
+            if pat_type == "XP_KICK":
+                xp_event = self.simulate_xpat(state, num)
+                return (pass_event, xp_event)
             else:
-                opponent = away_team if posteam == home_team else home_team
-                yard_line = yardline_100
-                return f"{opponent} {yard_line}"
-        play_type = self.decide_play_type(state)
-        time_lost = random.randint(20, 40)
-        state.quarter_seconds_remaining = state.quarter_seconds_remaining - time_lost
-        if state.quarter_seconds_remaining <= 0:
-            state.qtr += 1
-            if state.qtr in [2, 4]:
-                state.half_seconds_remaining = 900
-            else:
-                state.half_seconds_remaining = 1800
-            state.quarter_seconds_remaining = 900
-            state.game_seconds_remaining = 3600 - (state.qtr - 1) * 900
-        
-        num = random.random()
-        
-        is_interception = True
-        if play_type == "PASS":
-            if num < self.game.stats[state.posteam]['completion_prob']:
-                yards_gained = max(-5, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_pass'], 4)))
-                is_complete = True
-                is_interception = False
-                if state.yardline_100 - yards_gained <= 0:
-                    state.home_score += 6 if state.posteam == self.game.home else 0
-                    state.away_score += 6 if state.posteam == self.game.away else 0
-                    state.score_differential = state.home_score - state.away_score
-                    pass_event = PassEvent(
-                        "Simulated pass play: " + ("complete" if is_complete else "incomplete") + ", gain of " + str(yards_gained) + " yards. Touchdown by " + state.posteam + "!",
-                        state.home_score,
-                        state.away_score,
-                        state.qtr,
-                        state.quarter_seconds_remaining,
-                        state.half_seconds_remaining,
-                        state.game_seconds_remaining,
-                        1,
-                        10,
-                        state.posteam + " " + str(max(0, state.yardline_100 - yards_gained)) if max(0, state.yardline_100 - yards_gained) > 50 else self.game.away if state.posteam == self.game.home else self.game.home  + " " + str(max(0, state.yardline_100 - yards_gained)),
-                        75,
-                        yards_gained,
-                        state.score_differential,
-                        self.game.away if state.posteam == self.game.home else self.game.home,
-                        is_complete=True
-                    )
-                    pat_type = self.decide_pat_type(state)
-                    if pat_type == "XP_KICK":
-                        xp_distance = 33
-                        xp_prob = 0.99
-                        is_good = num < xp_prob * self.game.stats[state.posteam]['extra_point_prob']
-                        if is_good:
-                            state.home_score += 1 if state.posteam == self.game.home else 0
-                            state.away_score += 1 if state.posteam == self.game.away else 0
-                            state.score_differential = state.home_score - state.away_score
-                        xp_event = XPEvent(
-                            "Simulated extra point attempt from " + str(xp_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
-                            state.home_score,
-                            state.away_score,
-                            state.qtr,
-                            state.quarter_seconds_remaining,
-                            state.half_seconds_remaining,
-                            state.game_seconds_remaining,
-                            1,
-                            10,
-                            format_field_position(75, state.posteam, self.game.home, self.game.away),
-                            75,
-                            0,
-                            state.score_differential,
-                            self.game.away if state.posteam == self.game.home else self.game.home,
-                            is_good=is_good
-                        )
-                        return (pass_event, xp_event)
-                    else:
-                        pat2_distance = 33
-                        pat2_prob = 0.45
-                        is_good = num < pat2_prob * self.game.stats[state.posteam]['two_point_conversion_prob']
-                        if is_good:
-                            state.home_score += 2 if state.posteam == self.game.home else 0
-                            state.away_score += 2 if state.posteam == self.game.away else 0
-                            state.score_differential = state.home_score - state.away_score
-                        pat2_event = PAT2Event(
-                            "Simulated 2 point attempt from " + str(pat2_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
-                            state.home_score,
-                            state.away_score,
-                            state.qtr,
-                            state.quarter_seconds_remaining,
-                            state.half_seconds_remaining,
-                            state.game_seconds_remaining,
-                            1,
-                            10,
-                            format_field_position(75, state.posteam, self.game.home, self.game.away),
-                            75,
-                            0,
-                            state.score_differential,
-                            self.game.away if state.posteam == self.game.home else self.game.home,
-                            is_good=is_good
-                        )
-                        return (pass_event, pat2_event)
-                    
-            elif num < self.game.stats[state.posteam]['completion_prob'] + self.game.stats[state.posteam]['interception_prob']:
-                yards_gained = -max(-5, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_pass'], 4)))
-                play_type = "INTERCEPTION"
-            else:
-                yards_gained = 0
-                is_complete = False
-                is_interception = False
-            if not is_interception:
-                return PassEvent(
+                pat2_event = self.simulate_2pat(state, num)
+                return (pass_event, pat2_event)
+        else:
+            return PassEvent(
                     "Simulated pass play: " + ("complete" if is_complete else "incomplete") + ", gain of " + str(yards_gained) + " yards",
                     state.home_score,
                     state.away_score,
@@ -432,160 +437,227 @@ class Simulator:
                     state.posteam,
                     is_complete=is_complete,
                 )
-            else:
-                return InterceptionEvent(
-                    "Simulated interception play",
-                    state.home_score,
-                    state.away_score,
-                    state.qtr,
-                    state.quarter_seconds_remaining,
-                    state.half_seconds_remaining,
-                    state.game_seconds_remaining,
-                    1,
-                    10,
-                    format_field_position(100 - state.yardline_100, self.game.away if state.posteam == self.game.home else self.game.home , self.game.home, self.game.away),
-                    100 - state.yardline_100,
-                    0,
-                    state.score_differential,
-                    self.game.away if state.posteam == self.game.home else self.game.home ,
-                )
-        elif play_type == "RUSH":
-            yards_gained = max(-10, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_carry'], 3)))
-            if state.yardline_100 - yards_gained <= 0:
-                state.home_score += 6 if state.posteam == self.game.home else 0
-                state.away_score += 6 if state.posteam == self.game.away else 0
-                state.score_differential = state.home_score - state.away_score
+        
+    def simulate_interception(self, state, num):
+        return InterceptionEvent(
+            "Simulated interception play",
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            1,
+            10,
+            format_field_position(100 - state.yardline_100, self.game.away if state.posteam == self.game.home else self.game.home , self.game.home, self.game.away),
+            100 - state.yardline_100,
+            0,
+            state.score_differential,
+            self.game.away if state.posteam == self.game.home else self.game.home ,
+        )
 
-                rush_event = RushEvent(
-                    "Simulated rush play, gain of " + str(yards_gained) + " yards. Touchdown by " + state.posteam + "!",
-                    state.home_score,
-                    state.away_score,
-                    state.qtr,
-                    state.quarter_seconds_remaining,
-                    state.half_seconds_remaining,
-                    state.game_seconds_remaining,
-                    1,
-                    10,
-                    (self.game.away if state.posteam == self.game.home else self.game.home) + " " + str(25),
-                    75,
-                    yards_gained,
-                    state.score_differential,
-                    self.game.away if state.posteam == self.game.home else self.game.home
-                )
-                pat_type = self.decide_pat_type(state)
-                if pat_type == "XP_KICK":
-                    xp_distance = 33
-                    xp_prob = 0.99
-                    is_good = num < xp_prob * self.game.stats[state.posteam]['extra_point_prob']
-                    if is_good:
-                        state.home_score += 1 if state.posteam == self.game.home else 0
-                        state.away_score += 1 if state.posteam == self.game.away else 0
-                        state.score_differential = state.home_score - state.away_score
-                    xp_event = XPEvent(
-                        "Simulated extra point attempt from " + str(xp_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
-                        state.home_score,
-                        state.away_score,
-                        state.qtr,
-                        state.quarter_seconds_remaining,
-                        state.half_seconds_remaining,
-                        state.game_seconds_remaining,
-                        1,
-                        10,
-                        format_field_position(75, state.posteam, self.game.home, self.game.away),
-                        75,
-                        0,
-                        state.score_differential,
-                        self.game.away if state.posteam == self.game.home else self.game.home,
-                        is_good=is_good
-                    )
-                    return (rush_event, xp_event)
-                else:
-                    pat2_distance = 33
-                    pat2_prob = 0.45
-                    is_good = num < pat2_prob * self.game.stats[state.posteam]['two_point_conversion_prob']
-                    if is_good:
-                        state.home_score += 2 if state.posteam == self.game.home else 0
-                        state.away_score += 2 if state.posteam == self.game.away else 0
-                        state.score_differential = state.home_score - state.away_score
-                    pat2_event = PAT2Event(
-                        "Simulated 2 point attempt from " + str(pat2_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
-                        state.home_score,
-                        state.away_score,
-                        state.qtr,
-                        state.quarter_seconds_remaining,
-                        state.half_seconds_remaining,
-                        state.game_seconds_remaining,
-                        1,
-                        10,
-                        format_field_position(75, state.posteam, self.game.home, self.game.away),
-                        75,
-                        0,
-                        state.score_differential,
-                        self.game.away if state.posteam == self.game.home else self.game.home,
-                        is_good=is_good
-                    )
-                    return (rush_event, pat2_event)
+    def simulate_incompletion(self, state, num):
+        yards_gained = 0
+        is_complete = False
+        return PassEvent(
+            "Simulated pass play: " + ("complete" if is_complete else "incomplete") + ", gain of " + str(yards_gained) + " yards",
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            state.down + 1 if state.to_go > yards_gained else 1,
+            state.to_go - yards_gained if state.to_go > yards_gained else 10,
+            format_field_position(max(0, state.yardline_100 - yards_gained), state.posteam, self.game.home, self.game.away),
+            max(0, state.yardline_100 - yards_gained),
+            yards_gained,
+            state.score_differential,
+            state.posteam,
+            is_complete=is_complete,
+        )
+    
+    def simulate_rush(self, state, num):
+        yards_gained = max(-10, int(random.gauss(self.game.stats[state.posteam]['avg_yards_per_carry'], 3)))
+        if state.yardline_100 - yards_gained <= 0:
+            state.home_score += 6 if state.posteam == self.game.home else 0
+            state.away_score += 6 if state.posteam == self.game.away else 0
+            state.score_differential = state.home_score - state.away_score
 
-            return RushEvent(
-                "Simulated rush play, gain of " + str(yards_gained) + " yards",
+            rush_event = RushEvent(
+                "Simulated rush play, gain of " + str(yards_gained) + " yards. Touchdown by " + state.posteam + "!",
                 state.home_score,
                 state.away_score,
                 state.qtr,
                 state.quarter_seconds_remaining,
                 state.half_seconds_remaining,
                 state.game_seconds_remaining,
-                state.down + 1 if state.to_go > yards_gained else 1,
-                state.to_go - yards_gained if state.to_go > yards_gained else 10,
-                format_field_position(max(0, state.yardline_100 - yards_gained), state.posteam, self.game.home, self.game.away),
-                max(0, state.yardline_100 - yards_gained),
+                1,
+                10,
+                (self.game.away if state.posteam == self.game.home else self.game.home) + " " + str(25),
+                75,
                 yards_gained,
-                state.score_differential,
-                state.posteam
-            )
-        elif play_type == "FIELD_GOAL":
-            fg_distance = state.yardline_100 + 17
-            fg_prob = 1 / (1 + math.exp(-.2 * (fg_distance - 35)))
-            if num < fg_prob * self.game.stats[state.posteam]['field_goal_prob']:
-                is_good = True
-                state.home_score += 3 if state.posteam == self.game.home else 0
-                state.away_score += 3 if state.posteam == self.game.away else 0
-                score_differential = state.score_differential + 3 if state.posteam == self.game.away else state.score_differential - 3
-            else:
-                is_good = False
-                score_differential = state.score_differential
-            return FieldGoalEvent(
-                "Simulated field goal attempt from " + str(fg_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
-                state.home_score,
-                state.away_score,
-                state.qtr,
-                state.quarter_seconds_remaining,
-                state.half_seconds_remaining,
-                state.game_seconds_remaining,
-                1,
-                10,
-                format_field_position(100 - state.yardline_100 if not is_good else 75, state.posteam, self.game.home, self.game.away),
-                100 - state.yardline_100 if not is_good else 75,
-                0,
-                score_differential,
-                self.game.away if state.posteam == self.game.home else self.game.home,
-                is_good=is_good
-            )
-        elif play_type == "PUNT":
-            punt_distance = max(20, int(random.gauss(45, 10)))
-            new_yardline = 25 if state.yardline_100 - punt_distance <= 0 else state.yardline_100 - punt_distance
-            return PuntEvent(
-                "Simulated punt, distance of " + str(punt_distance) + " yards",
-                state.home_score,
-                state.away_score,
-                state.qtr,
-                state.quarter_seconds_remaining,
-                state.half_seconds_remaining,
-                state.game_seconds_remaining,
-                1,
-                10,
-                format_field_position(max(0, 100 - new_yardline), self.game.away if state.posteam == self.game.home else self.game.home, self.game.home, self.game.away),
-                100 - new_yardline,
-                0,
                 state.score_differential,
                 self.game.away if state.posteam == self.game.home else self.game.home
             )
+            pat_type = self.decide_pat_type(state)
+            if pat_type == "XP_KICK":
+                xp_event = self.simulate_xpat(state, num)
+                return (rush_event, xp_event)
+            else:
+                pat2_event = self.simulate_2pat(state, num)
+                return (rush_event, pat2_event)
+        return RushEvent(
+            "Simulated rush play, gain of " + str(yards_gained) + " yards",
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            state.down + 1 if state.to_go > yards_gained else 1,
+            state.to_go - yards_gained if state.to_go > yards_gained else 10,
+            format_field_position(max(0, state.yardline_100 - yards_gained), state.posteam, self.game.home, self.game.away),
+            max(0, state.yardline_100 - yards_gained),
+            yards_gained,
+            state.score_differential,
+            state.posteam
+        )
+    
+    def simulate_field_goal(self, state, num, made=None):
+        fg_distance = state.yardline_100 + 17
+        fg_prob = 1 / (1 + math.exp(-.2 * (fg_distance - 35)))
+        if made is not None:
+            if made:
+                num = 0
+            else:
+                num = 1
+        if num < fg_prob * self.game.stats[state.posteam]['field_goal_prob']:
+            is_good = True
+            state.home_score += 3 if state.posteam == self.game.home else 0
+            state.away_score += 3 if state.posteam == self.game.away else 0
+            score_differential = state.score_differential + 3 if state.posteam == self.game.away else state.score_differential - 3
+        else:
+            is_good = False
+            score_differential = state.score_differential
+        return FieldGoalEvent(
+            "Simulated field goal attempt from " + str(fg_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            1,
+            10,
+            format_field_position(100 - state.yardline_100 if not is_good else 75, self.game.away if state.posteam == self.game.home else self.game.home, self.game.home, self.game.away),
+            100 - state.yardline_100 if not is_good else 75,
+            0,
+            score_differential,
+            self.game.away if state.posteam == self.game.home else self.game.home,
+            is_good=is_good
+        )
+    
+    def simulate_punt(self, state, num):
+        punt_distance = max(20, int(random.gauss(45, 10)))
+        new_yardline = 25 if state.yardline_100 - punt_distance <= 0 else state.yardline_100 - punt_distance
+        return PuntEvent(
+            "Simulated punt, distance of " + str(punt_distance) + " yards",
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            1,
+            10,
+            format_field_position(max(0, 100 - new_yardline), self.game.away if state.posteam == self.game.home else self.game.home, self.game.home, self.game.away),
+            100 - new_yardline,
+            0,
+            state.score_differential,
+            self.game.away if state.posteam == self.game.home else self.game.home
+        )
+
+    def simulate_xpat(self, state, num, made=None):
+        xp_distance = 33
+        xp_prob = 0.95
+        is_good = num < xp_prob * self.game.stats[state.posteam]['extra_point_prob']
+        if made is not None:
+            is_good = made
+        if is_good:
+            state.home_score += 1 if state.posteam == self.game.home else 0
+            state.away_score += 1 if state.posteam == self.game.away else 0
+            state.score_differential = state.home_score - state.away_score
+        return XPEvent(
+            "Simulated extra point attempt from " + str(xp_distance) + " yards, by " + state.posteam + ", " + ("good" if is_good else "no good"),
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            1,
+            10,
+            format_field_position(75, state.posteam, self.game.home, self.game.away),
+            75,
+            0,
+            state.score_differential,
+            self.game.away if state.posteam == self.game.home else self.game.home,
+            is_good=is_good
+        )
+    def simulate_2pat(self, state, num, made=None):
+        pat2_distance = 3
+        pat2_prob = 0.45
+        is_good = num < pat2_prob * self.game.stats[state.posteam]['two_point_conversion_prob']
+        if made is not None:
+            is_good = made
+        if is_good:
+            state.home_score += 2 if state.posteam == self.game.home else 0
+            state.away_score += 2 if state.posteam == self.game.away else 0
+            state.score_differential = state.home_score - state.away_score
+        return PAT2Event(
+            "Simulated 2 point attempt from " + str(pat2_distance) + " yards, by " + state.posteam + ", " + ("converted" if is_good else "not converted"),
+            state.home_score,
+            state.away_score,
+            state.qtr,
+            state.quarter_seconds_remaining,
+            state.half_seconds_remaining,
+            state.game_seconds_remaining,
+            1,
+            10,
+            format_field_position(75, state.posteam, self.game.home, self.game.away),
+            75,
+            0,
+            state.score_differential,
+            self.game.away if state.posteam == self.game.home else self.game.home,
+            is_good=is_good
+        )
+                    
+    def simulate_next_play(self, state):
+        play_type = self.decide_play_type(state)
+        time_lost = random.randint(20, 40)
+        state.quarter_seconds_remaining = state.quarter_seconds_remaining - time_lost
+        if state.quarter_seconds_remaining <= 0:
+            state.qtr += 1
+            if state.qtr in [2, 4]:
+                state.half_seconds_remaining = 900
+            else:
+                state.half_seconds_remaining = 1800
+            state.quarter_seconds_remaining = 900
+            state.game_seconds_remaining = 3600 - (state.qtr - 1) * 900
+        
+        num = random.random()
+        
+        if play_type == "PASS":
+            if num < self.game.stats[state.posteam]['completion_prob']:
+                return self.simulate_completion(state, num)
+            elif num < self.game.stats[state.posteam]['completion_prob'] + self.game.stats[state.posteam]['interception_prob']:
+                return self.simulate_interception(state, num)
+            else:
+                return self.simulate_incompletion(state, num)
+        elif play_type == "RUSH":
+            return self.simulate_rush(state, num)
+        elif play_type == "FIELD_GOAL":
+           return self.simulate_field_goal(state, num)
+        elif play_type == "PUNT":
+            return self.simulate_punt(state, num)

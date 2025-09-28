@@ -9,7 +9,9 @@ from game import Game, Simulator
 # df = df[df['season'] == 2025]
 # # .to_dict(orient="records")
 # df.to_csv('teams.csv', index=False)
-game = Game("2025_01_ARI_NO", 2025)
-plays = game.plays
-sim = Simulator(game)
-plays = sim.simulate_from(50, plays[50])
+# game = Game("2025_03_MIA_BUF", 2025)
+# plays = game.plays
+# sim = Simulator(game)
+# plays = sim.simulate_from({"is_one_point": False, "made": True}, 11, plays[11])
+# for play in plays:
+#     print(play)
