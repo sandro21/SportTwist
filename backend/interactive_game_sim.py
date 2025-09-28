@@ -5,8 +5,6 @@ import random
 import math
 from game import (Game, PassEvent, RushEvent, FieldGoalEvent, XPEvent, InterceptionEvent, PenaltyEvent)
 
-
-
 def find_game_id(year, team1, team2):
     """Finds the game_id for a matchup in a given year."""
     try:
@@ -55,7 +53,8 @@ def display_all_plays(game):
         if filter_choice == 1:  # All plays
             should_display = True
         elif filter_choice == 2:  # Scoring plays
-            should_display = (play.points is not None and play.points != 0) or isinstance(play, (FieldGoalEvent, XPEvent))
+            points = getattr(play, 'points', 0) or 0
+            should_display = (points != 0) or isinstance(play, (FieldGoalEvent, XPEvent))
         elif filter_choice == 3:  # Turnovers
             should_display = isinstance(play, InterceptionEvent) or (hasattr(play, 'is_fumble') and play.is_fumble)
         elif filter_choice == 4:  # Big plays
@@ -184,72 +183,24 @@ def apply_core_modification(modification_code, play, game_stats):
     # Get team statistics for realistic modifications
     team_stats = game_stats[play.posteam]
     
-    # Create a copy of the original play
-    if isinstance(play, PassEvent):
-        new_play = PassEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, play.yards_gained, 
-            play.score_differential, play.posteam, play.points,
-            is_complete=play.is_complete, is_fumble=play.is_fumble
-        )
-    elif isinstance(play, RushEvent):
-        new_play = RushEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, play.yards_gained, 
-            play.score_differential, play.posteam, play.points,
-            is_fumble=play.is_fumble
-        )
-    elif isinstance(play, InterceptionEvent):
-        new_play = InterceptionEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, play.yards_gained, 
-            play.score_differential, play.posteam, play.points,
-            is_interception=True, is_fumble=getattr(play, 'is_fumble', False)
-        )
-    elif isinstance(play, FieldGoalEvent):
-        new_play = FieldGoalEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, play.yards_gained, 
-            play.score_differential, play.posteam, play.points,
-            is_good=play.is_good
-        )
-    elif isinstance(play, XPEvent):
-        new_play = XPEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, play.yards_gained, 
-            play.score_differential, play.posteam, play.points,
-            is_good=play.is_good
-        )
-    elif isinstance(play, PenaltyEvent):
-        new_play = PenaltyEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, play.yards_gained, 
-            play.score_differential, play.posteam, play.points,
-            penalty_type=play.penalty_type, penalty_yards=play.penalty_yards
-        )
-    else:
-        new_play = play
+    # Create a shallow copy of the play object to preserve all attributes
+    import copy
+    new_play = copy.copy(play)
     
     # CORE MODIFICATIONS BASED ON NFL GAME FACTORS
     
     # PASS MODIFICATIONS
     if modification_code == "make_complete":
         avg_yards = int(team_stats['avg_yards_per_pass'])
-        new_play = PassEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, avg_yards, 
-            play.score_differential, play.posteam, play.points,
-            is_complete=True, is_fumble=False
-        )
+        new_play.is_complete = True
+        new_play.is_fumble = False
+        new_play.yards_gained = avg_yards
         print(f"Made pass COMPLETE for {avg_yards} yards (team average)")
     
     elif modification_code == "make_incomplete":
-        new_play = PassEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, 0, 
-            play.score_differential, play.posteam, play.points,
-            is_complete=False, is_fumble=False
-        )
+        new_play.is_complete = False
+        new_play.is_fumble = False
+        new_play.yards_gained = 0
         print(" Made pass INCOMPLETE")
     
     elif modification_code == "turn_to_interception":
@@ -276,7 +227,8 @@ def apply_core_modification(modification_code, play, game_stats):
             new_play.is_fumble = True  # Fumbled on the return
             new_play.yards_gained = min(new_play.yards_gained, 3)  # Limited return before fumble  
             new_play.points = 0  # Remove any points from touchdown
-        print(f" Added FUMBLE (limited to {new_play.yards_gained} yards, removed {(play.points or 0)} points)")
+        original_points = getattr(play, 'points', 0) or 0
+        print(f" Added FUMBLE (limited to {new_play.yards_gained} yards, removed {original_points} points)")
     
     elif modification_code == "remove_fumble":
         if isinstance(new_play, RushEvent):
@@ -356,13 +308,8 @@ def apply_core_modification(modification_code, play, game_stats):
         print(f" Added {penalty_type} ({penalty_yards:+d} yards)")
     
     elif modification_code == "remove_penalty" and isinstance(new_play, PenaltyEvent):
-        # Convert penalty to normal play
-        new_play = PassEvent(
-            play.desc, play.qtr, play.half_seconds_remaining, play.game_seconds_remaining,
-            play.down, play.to_go, play.yardline_100, 5, 
-            play.score_differential, play.posteam, play.points,
-            is_complete=True, is_fumble=False
-        )
+        # Convert penalty to a successful play
+        new_play.yards_gained = 5
         print(" Removed penalty")
     
     # TIMEOUT
@@ -568,14 +515,17 @@ class GameSimulator:
         print(f"\n🐛 DEBUG: Checking scoring plays up to index {current_play_index}:")
         for i in range(current_play_index):  # Don't include the play we're modifying
             play = self.game.plays[i]
-            if play.points and play.points > 0:
-                print(f"   Play {i}: {play.posteam} scored {play.points} points - {play.desc[:60]}...")
+            points = getattr(play, 'points', 0) or 0
+            if points > 0:
+                print(f"   Play {i}: {play.posteam} scored {points} points - {play.desc[:60]}...")
                 if play.posteam == self.game.home:
-                    home_score_before_mod += play.points
+                    home_score_before_mod += points
                 else:
-                    away_score_before_mod += play.points
+                    away_score_before_mod += points
         
-        print(f"🐛 Total scoring plays found: {sum(1 for i in range(current_play_index) if self.game.plays[i].points and self.game.plays[i].points > 0)}")
+        scoring_plays_count = sum(1 for i in range(current_play_index) 
+                                if (getattr(self.game.plays[i], 'points', 0) or 0) > 0)
+        print(f"🐛 Total scoring plays found: {scoring_plays_count}")
         
         # Cross-check with actual game score at this time
         current_time = original_play.game_seconds_remaining
@@ -1071,9 +1021,10 @@ def main():
     print(f"\n[DEBUG] Total plays loaded: {len(game.plays)}")
     print("[DEBUG] Sample plays:")
     for idx, play in enumerate(game.plays[:20]):  # first 20 plays
+        points = getattr(play, 'points', 0) or 0
         print(f"{idx}: qtr={play.qtr}, time_rem={play.game_seconds_remaining}, down={play.down}-{play.to_go}, "
               f"ydline={play.yardline_100}, yds_gained={play.yards_gained}, score_diff={play.score_differential}, "
-              f"posteam={play.posteam}, points={play.points}")
+              f"posteam={play.posteam}, points={points}")
     print("[DEBUG] End sample plays\n")
 
     # Display ALL plays with filtering options
