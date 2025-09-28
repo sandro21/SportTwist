@@ -20,20 +20,24 @@ function App() {
   }>({})
   const [currentWeek, setCurrentWeek] = useState<number>(3) // Current week
   const [currentPage, setCurrentPage] = useState<'home' | 'game'>('home')
+  const [selectedGame, setSelectedGame] = useState<NFLGame | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Load popular games on component mount
+  // Load latest games (6) on component mount
   useEffect(() => {
-    const loadPopularGames = async () => {
+    const loadLatestGames = async () => {
       try {
-        const games = await nflApiService.getPopularGames()
-        setPopularGames(games)
+        const games = await nflApiService.fetchGames()
+        const latestSix = [...games]
+          .sort((a, b) => new Date(b.gameday).getTime() - new Date(a.gameday).getTime())
+          .slice(0, 6)
+        setPopularGames(latestSix)
       } catch (error) {
-        console.error('Failed to load popular games:', error)
+        console.error('Failed to load latest games:', error)
       }
     }
     
-    loadPopularGames()
+    loadLatestGames()
   }, [])
 
   // Handle search with debouncing
@@ -60,27 +64,33 @@ function App() {
     return () => clearTimeout(timeoutId)
   }, [searchQuery])
 
-  // Load popular games on component mount
+  // Load latest games and set initial results
   useEffect(() => {
-    const loadPopularGames = async () => {
-      console.log('Loading popular games...')
+    const loadLatestGames = async () => {
+      console.log('Loading latest games...')
       setIsLoading(true)
       try {
-        const games = await nflApiService.getPopularGames()
-        console.log('Loaded games:', games.length)
-        setPopularGames(games)
-        // Also set initial search results to recent games
+        const games = await nflApiService.fetchGames()
+        const latestSix = [...games]
+          .sort((a, b) => new Date(b.gameday).getTime() - new Date(a.gameday).getTime())
+          .slice(0, 6)
+        console.log('Loaded latest games:', latestSix.length)
+        setPopularGames(latestSix)
+        // Also set initial search results to recent games (top 10 from full list)
         if (games.length > 0) {
-          setSearchResults(games.slice(0, 10))
+          const topTen = [...games]
+            .sort((a, b) => new Date(b.gameday).getTime() - new Date(a.gameday).getTime())
+            .slice(0, 10)
+          setSearchResults(topTen)
         }
       } catch (error) {
-        console.error('Failed to load popular games:', error)
+        console.error('Failed to load latest games:', error)
       } finally {
         setIsLoading(false)
       }
     }
     
-    loadPopularGames()
+    loadLatestGames()
   }, [])
 
   // Handle search functionality
@@ -225,12 +235,21 @@ function App() {
     gameType: ['Regular', 'Playoffs']
   }
 
+  // Handle game selection and navigation
+  const handleGameSelect = (game: NFLGame) => {
+    setSelectedGame(game)
+    setCurrentPage('game')
+  }
+
   // Demo navigation
   if (currentPage === 'game') {
     return (
       <div>
         <button 
-          onClick={() => setCurrentPage('home')}
+          onClick={() => {
+            setCurrentPage('home')
+            setSelectedGame(null)
+          }}
           style={{
             position: 'fixed',
             top: '20px',
@@ -250,7 +269,7 @@ function App() {
         >
           ← Back to Home
         </button>
-        <GamePage />
+        <GamePage game={selectedGame} />
       </div>
     )
   }
@@ -354,10 +373,7 @@ function App() {
                         <SearchResultGameCard 
                           key={game.game_id} 
                           game={game}
-                          onClick={() => {
-                            // Handle game selection - you can add navigation logic here
-                            console.log('Selected game:', game.game_id)
-                          }}
+                          onClick={() => handleGameSelect(game)}
                         />
                       ))}
                   </div>
@@ -430,53 +446,10 @@ function App() {
                   <MinimizedGameCard 
                     key={game.game_id} 
                     game={game}
-                    onClick={() => {
-                      // Handle game selection - you can add navigation logic here
-                      console.log('Selected popular game:', game.game_id)
-                    }}
+                    onClick={() => handleGameSelect(game)}
                   />
                 ))
-            ) : (
-              // Fallback to default cards while loading
-              <>
-                <MinimizedGameCard teams="PHI vs DAL" date="Week 3" />
-                <MinimizedGameCard teams="KC vs BUF" date="Week 5" />
-                <MinimizedGameCard teams="GB vs MIN" date="Week 6" />
-                <MinimizedGameCard teams="NE vs MIA" date="Week 7" />
-                <MinimizedGameCard teams="PIT vs BAL" date="Week 8" />
-                <MinimizedGameCard teams="SF vs SEA" date="Week 9" />
-              </>
-            )}
-          </div>
-          
-          {/* Demo Button */}
-          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <button 
-              onClick={() => setCurrentPage('game')}
-              style={{
-                padding: '15px 30px',
-                background: 'linear-gradient(90deg, #8000FF 0%, #A000FF 100%)',
-                border: 'none',
-                borderRadius: '30px',
-                fontFamily: 'GT Standard',
-                fontSize: '18px',
-                fontWeight: '600',
-                color: 'white',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(128, 0, 255, 0.3)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)'
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(128, 0, 255, 0.4)'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(128, 0, 255, 0.3)'
-              }}
-            >
-              Demo Game Page →
-            </button>
+            ) : null}
           </div>
         </div>
       </div>

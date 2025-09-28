@@ -255,32 +255,63 @@ def get_popular_games():
         return jsonify({"error": str(e)}), 500
 
 
+def safe_convert(value):
+    """Convert pandas/numpy values to JSON-safe values"""
+    if pd.isna(value) or (isinstance(value, float) and np.isnan(value)):
+        return None
+    if isinstance(value, (np.integer, np.int64)):
+        return int(value)
+    if isinstance(value, (np.floating, np.float64)):
+        return float(value)
+    return value
+
+def clean_description(desc):
+    """Remove time stamps and clean up play descriptions"""
+    if not desc:
+        return desc
+    
+    # Remove time stamps like (14:50), (:04), (0:12), etc.
+    import re
+    cleaned = re.sub(r'\(\d*:\d+\)\s*', '', desc)
+    
+    # Remove extra spaces
+    cleaned = ' '.join(cleaned.split())
+    
+    return cleaned
+
 @app.route('/api/game/<game_id>', methods=['GET'])
 def load_game_pbp(game_id):
-    game = Game(game_id, int(game_id[:4]))
-    plays = game.plays
-    data = {}
-    data['game_id'] = game_id
-    data['plays'] = {}
-    for i, play in enumerate(plays):
-        data['plays'][int(i)] = {
-            'desc': play.desc,
-            'home_score': play.home_score,
-            'away_score': play.away_score,
-            'qtr': play.qtr,
-            'quarter_seconds_remaining': play.quarter_seconds_remaining,
-            'half_seconds_remaining': play.half_seconds_remaining,
-            'game_seconds_remaining': play.game_seconds_remaining,
-            'down': play.down,
-            'to_go': play.to_go,
-            'yrdln': play.yrdln,
-            'yardline_100': play.yardline_100,
-            'yards_gained': play.yards_gained,
-            'score_differential': play.score_differential,
-            'posteam': play.posteam,
-            'changeable_attributes': play.get_changeable_attributes()
-        }
-    return jsonify(data)
+    try:
+        game = Game(game_id, int(game_id[:4]))
+        plays = game.plays
+        data = {}
+        data['game_id'] = game_id
+        data['plays'] = {}
+        
+        logger.info(f"Loaded game {game_id}: {game.away} vs {game.home}, final score {game.away_score}-{game.home_score}")
+        
+        for i, play in enumerate(plays):
+            data['plays'][int(i)] = {
+                'desc': clean_description(safe_convert(play.desc)),
+                'home_score': safe_convert(play.home_score),
+                'away_score': safe_convert(play.away_score),
+                'qtr': safe_convert(play.qtr),
+                'quarter_seconds_remaining': safe_convert(play.quarter_seconds_remaining),
+                'half_seconds_remaining': safe_convert(play.half_seconds_remaining),
+                'game_seconds_remaining': safe_convert(play.game_seconds_remaining),
+                'down': safe_convert(play.down),
+                'to_go': safe_convert(play.to_go),
+                'yrdln': safe_convert(play.yrdln),
+                'yardline_100': safe_convert(play.yardline_100),
+                'yards_gained': safe_convert(play.yards_gained),
+                'score_differential': safe_convert(play.score_differential),
+                'posteam': safe_convert(play.posteam),
+                'changeable_attributes': play.get_changeable_attributes()
+            }
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Error loading game {game_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/simulate/', methods=['POST'])
 def simulate_rest_of_game():
@@ -298,23 +329,24 @@ def simulate_rest_of_game():
     last_row = plays[len(plays)-1]
     data['final_score'] = {game.home : last_row.home_score, game.away : last_row.away_score}
     for i, play in enumerate(plays):
-        data['plays'][int(i)] = {
-            'desc': play.desc,
-            'home_score': play.home_score,
-            'away_score': play.away_score,
-            'qtr': play.qtr,
-            'quarter_seconds_remaining': play.quarter_seconds_remaining,
-            'half_seconds_remaining': play.half_seconds_remaining,
-            'game_seconds_remaining': play.game_seconds_remaining,
-            'down': play.down,
-            'to_go': play.to_go,
-            'yrdln': play.yrdln,
-            'yardline_100': play.yardline_100,
-            'yards_gained': play.yards_gained,
-            'score_differential': play.score_differential,
-            'posteam': play.posteam,
-            'changeable_attributes': play.get_changeable_attributes()
-        }
+        if i < len(plays)-1:
+            data['plays'][int(i)] = {
+                'desc': play.desc,
+                'home_score': play.home_score,
+                'away_score': play.away_score,
+                'qtr': play.qtr,
+                'quarter_seconds_remaining': play.quarter_seconds_remaining,
+                'half_seconds_remaining': play.half_seconds_remaining,
+                'game_seconds_remaining': play.game_seconds_remaining,
+                'down': play.down,
+                'to_go': play.to_go,
+                'yrdln': play.yrdln,
+                'yardline_100': play.yardline_100,
+                'yards_gained': play.yards_gained,
+                'score_differential': play.score_differential,
+                'posteam': play.posteam,
+                'changeable_attributes': play.get_changeable_attributes()
+            }
     return jsonify(data)
 
 if __name__ == "__main__":

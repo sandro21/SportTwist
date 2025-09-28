@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './GamePage.css'
 import GameEvent from './GameEvent'
+import { nflApiService, type NFLGame } from '../services/nflApi'
 
 // Team data from team_logos_dict.py
 const teamData = {
@@ -37,44 +38,166 @@ const teamData = {
   'WAS': { name: 'Commanders', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Washington_commanders.svg/100px-Washington_commanders.svg.png' }
 }
 
-const GamePage = () => {
-  // Sample game data
-  const teams = "PHI vs DAL"
-  const teamCodes = teams.split(' vs ')
-  const team1Code = teamCodes[0] || 'PHI'
-  const team2Code = teamCodes[1] || 'DAL'
+interface GamePageProps {
+  game?: NFLGame | null
+}
+
+const GamePage = ({ game }: GamePageProps) => {
+  // Use real game data if provided, otherwise fallback to sample data
+  let team1Code: string, team2Code: string, score1: number, score2: number, weekText: string, dateText: string;
+  
+  if (game) {
+    // Use real NFL data
+    team1Code = game.away_team;  // Away team (first in "team vs team" format)
+    team2Code = game.home_team;  // Home team (second in "team vs team" format)
+    score1 = game.away_score;
+    score2 = game.home_score;
+    weekText = `Week ${game.week}`;
+    
+    // Format date from real data
+    const gameDateTime = new Date(game.gameday);
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    };
+    dateText = gameDateTime.toLocaleDateString('en-US', options);
+  } else {
+    // Fallback to sample data
+    team1Code = 'PHI';
+    team2Code = 'DAL';
+    score1 = 28;
+    score2 = 24;
+    weekText = 'Week 4';
+    dateText = 'September 24, 2025';
+  }
   
   const team1Data = teamData[team1Code as keyof typeof teamData] || teamData['PHI']
   const team2Data = teamData[team2Code as keyof typeof teamData] || teamData['DAL']
   
-  // Mocked score change for big game card
-  const score1 = 28
-  const score2 = 24
-  const prevScore1 = 27
-  const prevScore2 = 24
+  // Mocked score change for big game card (for demo purposes)
+  const prevScore1 = score1 - 1
+  const prevScore2 = score2
   const score1Delta = score1 - prevScore1
   const score2Delta = score2 - prevScore2
   const team1Won = score1 > score2
 
   // State management for card interactions - single layer only
-  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(0)
+  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
   const [affectedCards, setAffectedCards] = useState<Set<number>>(new Set())
 
-  // Game events data with mixed outcomes (chronological order)
-  const gameEvents = [
-    { team: "KC", score: "28-24", action: "Touchdown", quarter: "4th", timeRemaining: "0:12", description: "15-P.Mahomes pass short right to 87-T.Kelce for 8 yards, TOUCHDOWN", downAndDistance: "2nd & 8 at BUF 8", isFailure: false },
-    { team: "KC", score: "27-24", action: "Field Goal", quarter: "4th", timeRemaining: "2:34", description: "7-H.Butker 45 yard field goal is GOOD", downAndDistance: "4th & 3 at BUF 27", isFailure: false },
-    { team: "BUF", score: "24-24", action: "Penalty", quarter: "4th", timeRemaining: "3:45", description: "Defensive Pass Interference on 24-T.White", downAndDistance: "3rd & 7 at KC 23", isFailure: true },
-    { team: "BUF", score: "24-21", action: "Pass", quarter: "4th", timeRemaining: "5:12", description: "17-J.Allen pass short middle to 14-S.Diggs for 12 yards", downAndDistance: "1st & 10 at BUF 35", isFailure: false },
-    { team: "KC", score: "21-21", action: "Fourth Down", quarter: "3rd", timeRemaining: "1:23", description: "5-T.Townsend punts 42 yards to BUF 18, Center-45-J.Winchester", downAndDistance: "4th & 5 at KC 40", isFailure: true },
-    { team: "BUF", score: "21-14", action: "Touchdown", quarter: "3rd", timeRemaining: "4:56", description: "26-J.Cook rush right tackle for 3 yards, TOUCHDOWN", downAndDistance: "1st & Goal at KC 3", isFailure: false },
-    { team: "KC", score: "14-14", action: "Pass", quarter: "3rd", timeRemaining: "8:34", description: "15-P.Mahomes pass deep left to 10-R.Rice for 23 yards", downAndDistance: "2nd & 6 at KC 44", isFailure: false },
-    { team: "BUF", score: "14-7", action: "Field Goal", quarter: "2nd", timeRemaining: "0:03", description: "2-T.Bass 38 yard field goal is GOOD", downAndDistance: "4th & 2 at KC 20", isFailure: false },
-    { team: "KC", score: "14-4", action: "Penalty", quarter: "2nd", timeRemaining: "2:15", description: "Offensive Holding on 65-C.Humphrey", downAndDistance: "1st & 10 at BUF 25", isFailure: true },
-    { team: "KC", score: "14-0", action: "Conversion", quarter: "2nd", timeRemaining: "5:42", description: "2-Point conversion attempt", downAndDistance: "After TD", isFailure: false },
-    { team: "BUF", score: "7-0", action: "Pass", quarter: "2nd", timeRemaining: "8:17", description: "17-J.Allen pass short right to 2-G.Davis for 7 yards", downAndDistance: "3rd & 4 at KC 12", isFailure: false },
-    { team: "KC", score: "0-0", action: "Conversion", quarter: "1st", timeRemaining: "14:56", description: "1-Point conversion attempt", downAndDistance: "After TD", isFailure: true }
-  ]
+  // Play-by-play events derived from backend
+  type UiEvent = {
+    team: string
+    score: string
+    action: string
+    quarter: string
+    timeRemaining: string
+    description: string
+    downAndDistance: string
+    changeableAttributes?: any
+  }
+
+  const [events, setEvents] = useState<UiEvent[]>([])
+  const [originalEvents, setOriginalEvents] = useState<UiEvent[]>([]) // Store original events
+  const [isLoadingPbp, setIsLoadingPbp] = useState<boolean>(false)
+  const [pbpError, setPbpError] = useState<string | null>(null)
+  const [isSimulating, setIsSimulating] = useState<boolean>(false)
+
+  const formatQuarter = (qtr: number): string => {
+    if (qtr === 1) return '1st'
+    if (qtr === 2) return '2nd'
+    if (qtr === 3) return '3rd'
+    return `${qtr}th`
+  }
+
+  const formatTime = (seconds: number): string => {
+    const m = Math.floor(seconds / 60)
+    const s = Math.floor(seconds % 60)
+    const mm = m.toString()
+    const ss = s.toString().padStart(2, '0')
+    return `${mm}:${ss}`
+  }
+
+  const inferAction = (desc: string, changeable: any): string => {
+    const d = desc.toLowerCase()
+    if (d.includes('touchdown')) return 'Touchdown'
+    if (d.includes('field goal')) return 'Field Goal'
+    if (d.includes('punt')) return 'Fourth Down'
+    if (d.includes('conversion')) return 'Conversion'
+    if (d.includes('penalty') || (changeable && changeable.called)) return 'Penalty'
+    if (d.includes('pass') || (changeable && (changeable.is_complete !== undefined || changeable.is_interception !== undefined))) return 'Pass'
+    return 'Play'
+  }
+
+  useEffect(() => {
+    const loadPbp = async () => {
+      if (!game) {
+        setEvents([])
+        setPbpError(null)
+        return
+      }
+      
+      console.log('Loading PBP for game:', game.game_id)
+      setIsLoadingPbp(true)
+      setPbpError(null)
+      
+      try {
+        const details: any = await nflApiService.getGameDetails(game.game_id)
+        console.log('PBP API response:', details)
+        
+        setIsLoadingPbp(false)
+        
+        if (!details) {
+          setPbpError('No game data received from API')
+          setEvents([])
+          return
+        }
+        
+        if (!details.plays) {
+          setPbpError('No plays found in game data')
+          setEvents([])
+          return
+        }
+
+        const keys = Object.keys(details.plays)
+          .map(k => parseInt(k, 10))
+          .filter(n => !Number.isNaN(n))
+          .sort((a, b) => a - b) // Chronological order: 1st to 4th quarter
+
+        console.log(`Found ${keys.length} plays for game ${game.game_id}`)
+
+        const toUi: UiEvent[] = keys.map((idx) => {
+          const p: any = details.plays[idx]
+          const team = typeof p.posteam === 'string' ? p.posteam : ''
+          const score = `${Math.floor(p.away_score ?? 0)}-${Math.floor(p.home_score ?? 0)}`
+          const quarter = formatQuarter(Math.floor(p.qtr ?? 1))
+          const timeRemaining = formatTime(Math.floor(p.quarter_seconds_remaining ?? 0))
+          const description = p.desc || ''
+          const down = p.down ? Math.floor(p.down) : undefined
+          const toGo = p.to_go ? Math.floor(p.to_go) : undefined
+          const downText = down ? `${down}${down === 1 ? 'st' : down === 2 ? 'nd' : down === 3 ? 'rd' : 'th'}` : ''
+          const yrdln = p.yrdln || ''
+          const downAndDistance = down && toGo ? `${downText} & ${toGo} at ${yrdln}` : yrdln
+          const action = inferAction(description, p.changeable_attributes)
+          const changeableAttributes = p.changeable_attributes
+          return { team, score, action, quarter, timeRemaining, description, downAndDistance, changeableAttributes }
+        })
+
+        setEvents(toUi)
+        setOriginalEvents(toUi) // Store original for reference
+        setActiveCardIndex(null)
+        setAffectedCards(new Set())
+      } catch (error) {
+        console.error('Error loading PBP:', error)
+        setIsLoadingPbp(false)
+        setPbpError(`Failed to load play-by-play: ${error}`)
+        setEvents([])
+      }
+    }
+
+    loadPbp()
+  }, [game?.game_id])
 
   // Helper function to get card state
   const getCardState = (cardIndex: number) => {
@@ -87,6 +210,103 @@ const GamePage = () => {
     }
     
     return 'not-affected'
+  }
+
+  // Handle simulation when a play is changed
+  const handlePlayChange = async (playIndex: number, newChangeableAttributes: any) => {
+    if (!game) return
+    
+    // Only simulate plays that have supported changeable attributes
+    // Skip plays that don't have reroll methods implemented
+    const supportedAttributes = ['is_complete', 'is_interception', 'called']
+    const hasSupported = supportedAttributes.some(attr => newChangeableAttributes.hasOwnProperty(attr))
+    
+    if (!hasSupported) {
+      console.log('Skipping simulation - play type not supported for changes:', newChangeableAttributes)
+      return
+    }
+    
+    try {
+      setIsSimulating(true)
+      console.log(`Simulating change at play ${playIndex}:`, newChangeableAttributes)
+      
+      // Make simulation API call directly
+      const response = await fetch('http://localhost:5001/api/simulate/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          game_id: game.game_id,
+          changeable_attributes: newChangeableAttributes,
+          start_play_index: playIndex
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Simulation failed: ${response.status} ${response.statusText}`)
+      }
+      
+      const simulationResult = await response.json()
+      
+      console.log('Simulation result received:', simulationResult)
+      
+      // Replace ALL plays with simulation results
+      if (simulationResult.plays) {
+        const simKeys = Object.keys(simulationResult.plays)
+          .map(k => parseInt(k, 10))
+          .filter(n => !Number.isNaN(n))
+          .sort((a, b) => a - b) // Chronological order: 1st to 4th quarter
+
+        const newEvents: UiEvent[] = simKeys.map((simIdx) => {
+          const p = simulationResult.plays[simIdx]
+          const team = typeof p.posteam === 'string' ? p.posteam : ''
+          const score = `${Math.floor(p.away_score ?? 0)}-${Math.floor(p.home_score ?? 0)}`
+          const quarter = formatQuarter(Math.floor(p.qtr ?? 1))
+          const timeRemaining = formatTime(Math.floor(p.quarter_seconds_remaining ?? 0))
+          const description = p.desc || ''
+          
+          // Debug simulation results
+          console.log(`Play ${simIdx} simulation result:`, {
+            original_desc: description,
+            changeable_attributes: p.changeable_attributes,
+            team: team,
+            score: score
+          })
+          
+          const down = p.down ? Math.floor(p.down) : undefined
+          const toGo = p.to_go ? Math.floor(p.to_go) : undefined
+          const downText = down ? `${down}${down === 1 ? 'st' : down === 2 ? 'nd' : down === 3 ? 'rd' : 'th'}` : ''
+          const yrdln = p.yrdln || ''
+          const downAndDistance = down && toGo ? `${downText} & ${toGo} at ${yrdln}` : yrdln
+          const action = inferAction(description, p.changeable_attributes)
+          const changeableAttributes = p.changeable_attributes
+          
+          return {
+            team, score, action, quarter, timeRemaining, description, downAndDistance, changeableAttributes
+          }
+        })
+        
+        console.log(`Updating all ${newEvents.length} plays from simulation`)
+        setEvents(newEvents)
+        
+        // Clear active card state since we have all new data
+        setActiveCardIndex(null)
+        setAffectedCards(new Set())
+      }
+      
+      // Update final scores in the big game card
+      if (simulationResult.final_score) {
+        console.log('Updated final scores:', simulationResult.final_score)
+        // The scores will be reflected in the last play's score already
+      }
+      
+    } catch (error) {
+      console.error('Simulation failed:', error)
+      // Could show an error message to user here
+    } finally {
+      setIsSimulating(false)
+    }
   }
 
   const handleCardToggle = (cardIndex: number) => {
@@ -114,7 +334,7 @@ const GamePage = () => {
           <div className="big-game-left-team">
             <img src={team1Data.logo} alt={team1Data.name} className="big-game-logo" />
             <div className="big-game-team-names">
-              <div className="big-game-city-name">Philadelphia</div>
+              <div className="big-game-city-name">{team1Code}</div>
               <div 
                 className="big-game-mascot-name" 
                 style={{ 
@@ -122,7 +342,7 @@ const GamePage = () => {
                   color: team1Won ? '#000000' : '#666666'
                 }}
               >
-                Eagles
+                {team1Data.name}
               </div>
             </div>
             <div 
@@ -142,8 +362,8 @@ const GamePage = () => {
 
           {/* Middle Date */}
           <div className="big-game-middle">
-            <div className="big-game-week">Week 4</div>
-            <div className="big-game-date">September 24, 2025</div>
+            <div className="big-game-week">{weekText}</div>
+            <div className="big-game-date">{dateText}</div>
           </div>
 
           {/* Right Team */}
@@ -162,7 +382,7 @@ const GamePage = () => {
               )}
             </div>
             <div className="big-game-team-names">
-              <div className="big-game-city-name">Dallas</div>
+              <div className="big-game-city-name">{team2Code}</div>
               <div 
                 className="big-game-mascot-name" 
                 style={{ 
@@ -170,7 +390,7 @@ const GamePage = () => {
                   color: team1Won ? '#666666' : '#000000'
                 }}
               >
-                Cowboys
+                {team2Data.name}
               </div>
             </div>
             <img src={team2Data.logo} alt={team2Data.name} className="big-game-logo" />
@@ -184,9 +404,31 @@ const GamePage = () => {
             <h3>Game Events</h3>
             
             {/* Render game events with visual quarter dividers */}
-            {gameEvents.map((event, index) => {
+            {isLoadingPbp && (
+              <div className="search-loading">Loading play-by-play...</div>
+            )}
+            {isSimulating && (
+              <div className="simulation-loading-overlay">
+                <div className="simulation-loading-content">
+                  <div className="simulation-spinner"></div>
+                  <div className="simulation-loading-text">Simulating game changes...</div>
+                  <div className="simulation-loading-subtext">Please wait while we calculate alternate outcomes</div>
+                </div>
+              </div>
+            )}
+            {pbpError && (
+              <div className="search-no-results">
+                Error: {pbpError}
+                <br />
+                <small>Game ID: {game?.game_id}</small>
+              </div>
+            )}
+            {!isLoadingPbp && !pbpError && events.length === 0 && (
+              <div className="search-no-results">No plays found for this game</div>
+            )}
+            {!isLoadingPbp && !pbpError && events.map((event, index) => {
               const cardState = getCardState(index)
-              const prevEvent = index > 0 ? gameEvents[index - 1] : null
+              const prevEvent = index > 0 ? events[index - 1] : null
               const showQuarterHeader = !prevEvent || prevEvent.quarter !== event.quarter
               
               return (
@@ -200,6 +442,7 @@ const GamePage = () => {
                   
                   {/* Render the game event */}
                 <GameEvent 
+                    key={`${index}-${JSON.stringify(event.changeableAttributes)}`}
                     team={event.team}
                     score={event.score}
                     action={event.action}
@@ -208,8 +451,11 @@ const GamePage = () => {
                     description={event.description}
                     downAndDistance={event.downAndDistance}
                     cardState={cardState}
-                    isFailure={event.isFailure}
-                  onToggle={() => handleCardToggle(index)}
+                    changeableAttributes={event.changeableAttributes}
+                    onToggle={() => handleCardToggle(index)}
+                    onPlayChange={(newAttributes) => handlePlayChange(index, newAttributes)}
+                    playIndex={index}
+                    disabled={isSimulating}
                   />
                 </div>
               )
