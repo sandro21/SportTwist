@@ -436,7 +436,7 @@ def create_comprehensive_sample_game() -> GameState:
         
         # Q1 - ARI FG Drive  
         PlayEvent(7, 1, 400, 1, 10, 30, "ARI", PlayType.PASS, is_pass=True, is_complete=True, yards_gained=15, is_first_down=True),
-        PlayEvent(8, 1, 350, 1, 10, 45, "ARI", PlayType.RUSH, yards_gained=5),
+        PlayEvent(8, 1, 350, 1, 10, 45, "ARI", PlayType.RUSH , yards_gained=5),
         PlayEvent(9, 1, 300, 2, 5, 50, "ARI", PlayType.PASS, is_pass=True, is_complete=False),
         PlayEvent(10, 1, 250, 3, 5, 50, "ARI", PlayType.PASS, is_pass=True, is_complete=True, yards_gained=8, is_first_down=True, third_down_converted=True),
         PlayEvent(11, 1, 200, 1, 10, 58, "ARI", PlayType.RUSH, yards_gained=12, is_first_down=True),
